@@ -117,7 +117,7 @@ class RPC {
 
         const _decode = (param: any): any => {
             if (param === Object(param)) {
-                if (param['@func'] === '1.0' && 'hash' in param) {
+                if (param['@func'] === '1.0' && Reflect.has(param, 'has')) {
                     return new Proxy(() => { }, {
                         apply(_, __, params) {
                             self.notify('_.Function.call', [param.hash, params])
@@ -199,7 +199,7 @@ class RPC {
             return false
         }
 
-        if ('method' in request) {
+        if (Reflect.has(request, 'method')) {
             let { method, params } = request
 
             let remote
@@ -251,14 +251,14 @@ class RPC {
                     throw e
                 }
             }
-        } else if ('error' in request) {
+        } else if (Reflect.has(request, 'error')) {
             if (request.id && this._promises.has(request.id)) {
                 let promise = this._promises.get(request.id)
                 promise.reject(request.error)
                 clearTimeout(promise.timeout)
                 this._promises.delete(request.id)
             }
-        } else if ('result' in request) {
+        } else if (Reflect.has(request, 'result')) {
             if (request.id && this._promises.has(request.id)) {
                 let promise = this._promises.get(request.id)
                 let result = request.result
@@ -275,10 +275,10 @@ class RPC {
                             if (String(prop).slice(0, 1) == '$$') {
                                 return
                             }
-                            if (prop in target) {
+                            if (Reflect.has(target, prop)) {
                                 return target[prop]
                             }
-                            if (!(prop in target.$cache)) {
+                            if (!Reflect.has(target.$cache, prop)) {
                                 target.$$cache[prop] = new Proxy(
                                     Object.assign(() => { }, {
                                         $$baseName: `${target.$$baseName}.${String(prop)}`,
