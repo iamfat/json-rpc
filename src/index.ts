@@ -278,7 +278,7 @@ class RPC {
                             if (Reflect.has(target, prop)) {
                                 return target[prop]
                             }
-                            if (!Reflect.has(target.$cache, prop)) {
+                            if (!Reflect.has(target.$$cache, prop)) {
                                 target.$$cache[prop] = new Proxy(
                                     Object.assign(() => { }, {
                                         $$baseName: `${target.$$baseName}.${String(prop)}`,
