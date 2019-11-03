@@ -127,7 +127,7 @@ class RPC {
 
         const _decode = (param: any): any => {
             if (param === Object(param)) {
-                if (param['@func'] === '1.0' && Reflect.has(param, 'has')) {
+                if (param['@func'] === '1.0' && Reflect.has(param, 'hash')) {
                     return new Proxy(() => {}, {
                         apply(_, __, params) {
                             self.notify('_.Function.call', [param.hash, params]);
