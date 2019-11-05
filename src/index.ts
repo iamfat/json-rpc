@@ -229,7 +229,7 @@ class RPC {
                 }
             }
 
-            if (f === undefined) {
+            if (f === undefined && request.id) {
                 return this.sendError(new RPCError(`Method "${method}" not found`, -32601), request.id);
             }
 
