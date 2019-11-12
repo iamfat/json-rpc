@@ -10,6 +10,9 @@ declare class RPC {
     private _promises;
     private _callings;
     private _patterns;
+    private _hashedFunctions;
+    private _remoteObjects;
+    private _remoteObjectClusters;
     static Error: typeof RPCError;
     constructor(send: Function, timeout?: number);
     private decodeFunctions;
