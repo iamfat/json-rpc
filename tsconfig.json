@@ -1,15 +1,19 @@
 {
-    "compilerOptions": {
-      "declaration": true,
-      "declarationDir": "./lib",
-      "module": "es6",
-      "noImplicitAny": true,
-      "outDir": "./lib",
-      "target": "es5",
-      "experimentalDecorators": true,
-      "allowSyntheticDefaultImports": true
-    },
-    "include": ["src/**/*"],
-    "exclude": ["node_modules"]
-  }
-  
+  "compilerOptions": {
+    "declaration": true,
+    "declarationDir": "./lib",
+    "module": "esnext",
+    "target": "es5",
+    "noImplicitAny": false,
+    // "outDir": "./lib",
+    "rootDir": "./src",
+    "experimentalDecorators": true,
+    "allowSyntheticDefaultImports": true,
+  },
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}

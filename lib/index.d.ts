@@ -1,6 +1,6 @@
 declare class RPCError extends Error {
-    code: number;
     message: string;
+    code: number;
     constructor(message: string, code: number);
     toString(): string;
 }
@@ -20,7 +20,7 @@ declare class RPC {
     private makeRemoteObject;
     private extendedRPCs;
     extends(rpc: RPC): void;
-    getHandler(method: string): (Function | RegExpMatchArray)[];
+    getHandler(method: string): any[];
     receive(request: any): Promise<false | this>;
     sendResult(result: any, id?: string): this;
     sendError(e: RPCError, id?: string): this;
