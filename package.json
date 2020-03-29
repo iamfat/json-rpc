@@ -1,6 +1,6 @@
 {
   "name": "json-rpc",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "main": "lib/index.js",
   "module": "lib/index.es.js",
   "author": "Jia Huang <iamfat@gmail.com>",
@@ -21,6 +21,6 @@
   },
   "dependencies": {
     "hash-sum": "^2.0.0",
-    "nanoid": "^3.0.1"
+    "nanoid": "github:iamfat/nanoid"
   }
 }
