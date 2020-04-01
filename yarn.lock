@@ -95,9 +95,10 @@ magic-string@^0.25.2:
   dependencies:
     sourcemap-codec "^1.4.4"
 
-"nanoid@github:iamfat/nanoid":
-  version "3.0.0"
-  resolved "https://codeload.github.com/iamfat/nanoid/tar.gz/55c47ed5a920510b830b94ffb2648059b31057d4"
+nanoid@^3.0.1:
+  version "3.0.1"
+  resolved "https://registry.npm.taobao.org/nanoid/download/nanoid-3.0.1.tgz#8fb66b6910902327d4a47f623f9a3e502d563edf"
+  integrity sha1-j7ZraRCQIyfUpH9iP5o+UC1WPt8=
 
 path-parse@^1.0.6:
   version "1.0.6"

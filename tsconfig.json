@@ -1,11 +1,8 @@
 {
   "compilerOptions": {
-    // "declaration": true,
-    // "declarationDir": "./lib",
-    "module": "esnext",
-    "target": "es5",
+    "module": "commonjs",
+    "target": "es6",
     "noImplicitAny": false,
-    // "outDir": "./lib",
     "rootDir": "./src",
     "experimentalDecorators": true,
     "allowSyntheticDefaultImports": true,

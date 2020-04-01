@@ -1,8 +1,7 @@
 {
   "name": "json-rpc",
-  "version": "1.0.2",
+  "version": "1.0.5",
   "main": "lib/index.js",
-  "module": "lib/index.es.js",
   "author": "Jia Huang <iamfat@gmail.com>",
   "license": "MIT",
   "devDependencies": {
@@ -11,14 +10,14 @@
     "@rollup/plugin-typescript": "^4.0.0",
     "rollup": "^2.2.0",
     "temp-dir": "^2.0.0",
-    "tslib": "^1.11.1",
     "typescript": "^3.8.3"
   },
   "scripts": {
     "build": "rollup -c"
   },
   "dependencies": {
+    "tslib": "^1.11.1",
     "hash-sum": "^2.0.0",
-    "nanoid": "github:iamfat/nanoid"
+    "nanoid": "^3.0.1"
   }
 }

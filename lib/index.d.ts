@@ -4,8 +4,9 @@ declare class RPCError extends Error {
     constructor(message: string, code: number);
     toString(): string;
 }
+declare type RPCSend = (data: any) => void;
 declare class RPC {
-    send: Function;
+    send: RPCSend;
     private _timeout;
     private _promises;
     private _callings;
@@ -14,14 +15,14 @@ declare class RPC {
     private _remoteObjects;
     private _remoteObjectClusters;
     static Error: typeof RPCError;
-    constructor(send: Function, timeout?: number);
+    constructor(send: RPCSend, timeout?: number);
     private decodeFunctions;
     private encodeFunctions;
     private makeRemoteObject;
     private extendedRPCs;
     extends(rpc: RPC): void;
     getHandler(method: string): any[];
-    receive(request: any): Promise<false | this>;
+    receive(request: any): Promise<void>;
     sendResult(result: any, id?: string): this;
     sendError(e: RPCError, id?: string): this;
     notify(method: string, params?: any): void;

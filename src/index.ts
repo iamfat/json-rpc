@@ -41,8 +41,10 @@ interface RPCPromise {
     timeout: any;
 }
 
+type RPCSend = (data: any) => void;
+
 class RPC {
-    public send: Function;
+    public send: RPCSend;
 
     private _timeout = 5000;
     private _promises = new Map<string, RPCPromise>();
@@ -55,7 +57,7 @@ class RPC {
 
     public static Error = RPCError;
 
-    public constructor(send: Function, timeout = 5000) {
+    public constructor(send: RPCSend, timeout = 5000) {
         this.send = send;
         this._timeout = timeout || 5000;
 
@@ -221,9 +223,19 @@ class RPC {
         return [f, matches];
     }
 
-    public async receive(request: any) {
+    public async receive(request: any): Promise<void> {
+        if (typeof request === 'string') {
+            try {
+                request = JSON.parse(request);
+            } catch (e) {
+                this.sendError(new RPCError('Parse error', -32700));
+                return;
+            }
+        }
+
         if (request.jsonrpc !== '2.0') {
-            return false;
+            this.sendError(new RPCError('Parse error', -32700));
+            return;
         }
 
         if (Reflect.has(request, 'method')) {
@@ -270,10 +282,12 @@ class RPC {
                     // encode result and add ref
                     result = this.makeRemoteObject(result);
                 }
-                if (request.id) return this.sendResult(result, request.id);
+                if (request.id) {
+                    this.sendResult(result, request.id);
+                }
             } catch (e) {
                 if (e instanceof RPCError) {
-                    return this.sendError(e);
+                    this.sendError(e);
                 } else {
                     throw e;
                 }
