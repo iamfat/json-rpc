@@ -287,7 +287,7 @@ class RPC {
                 }
             } catch (e) {
                 if (e instanceof RPCError) {
-                    this.sendError(e);
+                    this.sendError(e, request.id);
                 } else {
                     throw e;
                 }
