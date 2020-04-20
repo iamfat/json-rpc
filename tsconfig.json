@@ -6,6 +6,7 @@
     "rootDir": "./src",
     "experimentalDecorators": true,
     "allowSyntheticDefaultImports": true,
+    "sourceMap": true,
   },
   "include": [
     "src/**/*"
