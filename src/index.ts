@@ -1,4 +1,4 @@
-import hash_sum from 'hash-sum';
+import * as hash_sum from 'hash-sum';
 import { nanoid } from 'nanoid/non-secure';
 
 class RPCError extends Error {
