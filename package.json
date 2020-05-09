@@ -1,5 +1,5 @@
 {
-  "name": "json-rpc",
+  "name": "@genee/json-rpc",
   "version": "1.0.7",
   "main": "lib/index.js",
   "author": "Jia Huang <iamfat@gmail.com>",
