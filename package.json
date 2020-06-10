@@ -1,7 +1,8 @@
 {
   "name": "@genee/json-rpc",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "main": "lib/index.js",
+  "browser": "lib/index.browser.js",
   "author": "Jia Huang <iamfat@gmail.com>",
   "license": "MIT",
   "devDependencies": {

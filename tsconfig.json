@@ -1,10 +1,9 @@
 {
   "compilerOptions": {
-    "module": "commonjs",
+    "module": "es6",
     "target": "es6",
     "noImplicitAny": false,
     "rootDir": "./src",
-    "experimentalDecorators": true,
     "allowSyntheticDefaultImports": true,
     "sourceMap": true,
   },
