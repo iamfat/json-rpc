@@ -16,7 +16,7 @@ export declare class RPC {
     static bufferDecode: Function;
     private _options;
     private _promises;
-    private _callings;
+    private _callingHandlers;
     private _patterns;
     private _hashedFunctions;
     private _remoteObjects;
@@ -27,12 +27,13 @@ export declare class RPC {
     private makeRemoteObject;
     private extendedRPCs;
     extends(rpc: RPC): void;
-    getHandler(method: string): any[];
+    private getHandler;
     receive(request: any): Promise<void>;
     sendResult(result: any, id?: string): this;
     sendError(e: RPCError, id?: string): this;
     notify(method: string, params?: any): void;
     call(method: string, params?: any): Promise<unknown>;
-    on(method: string | RegExp, cb: Function): this;
+    once(method: string, callback: Function): this;
+    on(method: string | RegExp, callback: Function, once?: boolean): this;
     off(method: string | RegExp): this;
 }

@@ -6,22 +6,37 @@ import { terser } from 'rollup-plugin-terser';
 export default [
     {
         input: 'src/index.ts',
-        output: [
-            {
-                format: 'esm',
-                dir: 'lib',
-                sourcemap: true,
-            },
-        ],
+        output: {
+            format: 'cjs',
+            dir: 'lib',
+            exports: 'named',
+            sourcemap: true,
+        },
         external: ['hash-sum', 'nanoid/non-secure'],
-        plugins: [typescript({ declaration: true, outDir: 'lib' }), resolve(), commonjs(), terser()],
+        plugins: [typescript({ declaration: true, declarationDir: 'lib' }), resolve(), commonjs(), terser()],
+    },
+    {
+        input: 'src/index.ts',
+        output: {
+            format: 'esm',
+            file: 'lib/index.mjs',
+            sourcemap: true,
+        },
+        external: ['hash-sum', 'nanoid/non-secure'],
+        plugins: [typescript(), resolve(), commonjs(), terser()],
     },
     {
         input: 'src/index.browser.ts',
         output: [
             {
                 format: 'esm',
+                file: 'lib/index.browser.mjs',
+                sourcemap: true,
+            },
+            {
+                format: 'cjs',
                 file: 'lib/index.browser.js',
+                exports: 'named',
                 sourcemap: true,
             },
         ],

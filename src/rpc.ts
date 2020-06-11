@@ -52,34 +52,35 @@ export class RPC {
     public static bufferDecode: Function;
 
     private _options: RPCOptions;
-    private _promises = new Map<string, RPCPromise>();
-    private _callings = new Map<string, Function>();
+    private _promises: { [method: string]: RPCPromise } = {};
+    private _callingHandlers: { [method: string]: { callback: Function; once: boolean } } = {};
     private _patterns: RPCPattern[] = [];
 
-    private _hashedFunctions = new Map<string, Function>();
-    private _remoteObjects = new Map<string, any>();
-    private _remoteObjectClusters = new Map<string, string[]>();
+    private _hashedFunctions: { [hash: string]: Function } = {};
+    private _remoteObjects: { [id: string]: any } = {};
+    private _remoteObjectClusters: { [id: string]: string[] } = {};
 
     public constructor(send: RPCSend, options?: RPCOptions) {
         this.send = send;
         this._options = { timeout: 5000, ...(options || {}) };
 
-        this.on('_.Function.call', async (hash: string, params: any[]) => {
-            if (this._hashedFunctions.has(hash)) {
-                let f = this._hashedFunctions.get(hash);
-                return await Promise.resolve(f(...params));
+        this.on('_.Function.call', (hash: string, params: any[]) => {
+            if (this._hashedFunctions.hasOwnProperty(hash)) {
+                let f = this._hashedFunctions[hash];
+                return Promise.resolve(f(...params));
             }
+            return Promise.resolve();
         });
 
         this.on('_.Function.release', (hash: string) => {
-            if (this._hashedFunctions.has(hash)) {
-                this._hashedFunctions.delete(hash);
+            if (this._hashedFunctions.hasOwnProperty(hash)) {
+                delete this._hashedFunctions[hash];
             }
         });
 
         this.on('_.RemoteObject.set', (remoteId: string, path: string, value: any) => {
             try {
-                const obj = this._remoteObjects.get(remoteId);
+                const obj = this._remoteObjects[remoteId];
                 const props = path.split('.');
                 const lastProp = props.pop();
                 let o = obj;
@@ -92,43 +93,44 @@ export class RPC {
             }
         });
 
-        this.on('_.RemoteObject.get', async (remoteId: string) => {
-            try {
-                const obj = this._remoteObjects.get(remoteId);
-                return JSON.parse(JSON.stringify(await Promise.resolve(obj)));
-            } catch (e) {
-                console.debug(e);
-            }
+        this.on('_.RemoteObject.get', (remoteId: string) => {
+            const obj = this._remoteObjects[remoteId];
+            return Promise.resolve(obj)
+                .then((o) => {
+                    return JSON.parse(JSON.stringify(o));
+                })
+                .catch((e) => {
+                    console.debug('_.RemoteObject.get error', e);
+                });
         });
 
-        this.on('_.RemoteObject.apply', async (remoteId: string, path: string, params: any) => {
-            try {
-                const obj = this._remoteObjects.get(remoteId);
-                let passToRemote, props;
-                if (path.slice(-1) === '$') {
-                    props = path.slice(0, -1).split('.');
-                    passToRemote = true;
-                } else {
-                    props = path.split('.');
-                    passToRemote = false;
-                }
-                const lastProp = props.pop();
-                let o = obj;
-                for (let p of props) {
-                    o = Reflect.get(o, p);
-                }
-                let ret = await Promise.resolve(Reflect.apply(o[lastProp], o, params));
+        this.on('_.RemoteObject.apply', (remoteId: string, path: string, params: any) => {
+            const obj = this._remoteObjects[remoteId];
+            let passToRemote, props;
+            if (path.slice(-1) === '$') {
+                props = path.slice(0, -1).split('.');
+                passToRemote = true;
+            } else {
+                props = path.split('.');
+                passToRemote = false;
+            }
+            const lastProp = props.pop();
+            let o = obj;
+            for (let p of props) {
+                o = Reflect.get(o, p);
+            }
+            return Promise.resolve(Reflect.apply(o[lastProp], o, params)).then((ret) => {
                 if (passToRemote) {
                     return JSON.parse(JSON.stringify(ret));
                 }
                 return this.makeRemoteObject(ret, remoteId);
-            } catch {}
+            });
         });
 
         this.on('_.RemoteObject.release', (remoteId: string) => {
-            const cluster = this._remoteObjectClusters.get(remoteId) || [];
-            cluster.map((key) => this._remoteObjects.delete(key));
-            this._remoteObjectClusters.delete(remoteId);
+            const cluster = this._remoteObjectClusters[remoteId] || [];
+            cluster.map((key) => delete this._remoteObjects[key]);
+            delete this._remoteObjectClusters[remoteId];
             return true;
         });
     }
@@ -163,7 +165,7 @@ export class RPC {
                 }
             } else if (Array.isArray(param)) {
                 return param.map((p) => _decode(p));
-            } else if (RPC.bufferDecode && typeof param === 'string' && param.slice(0, 4) === '@buf:') {
+            } else if (RPC.bufferDecode && typeof param === 'string' && param.slice(0, 5) === '@buf:') {
                 return RPC.bufferDecode(param.slice(5));
             }
             return param;
@@ -176,7 +178,7 @@ export class RPC {
         const _encode = (param: any): any => {
             if (typeof param === 'function') {
                 let hash = hash_sum(param);
-                this._hashedFunctions.set(hash, param);
+                this._hashedFunctions[hash] = param;
                 return { '@func': '1.0', hash };
             } else if (RPC.isBuffer && RPC.bufferEncode && RPC.isBuffer(param)) {
                 return '@buf:' + RPC.bufferEncode(param);
@@ -195,12 +197,12 @@ export class RPC {
 
     private makeRemoteObject(obj: any, remoteId?: string) {
         const uniqid = nanoid();
-        this._remoteObjects.set(uniqid, obj);
+        this._remoteObjects[uniqid] = obj;
 
         const rootId = remoteId || uniqid;
-        const cluster: string[] = this._remoteObjectClusters.get(rootId) || [];
+        const cluster = this._remoteObjectClusters[rootId] || [];
         cluster.push(uniqid);
-        this._remoteObjectClusters.set(rootId, cluster);
+        this._remoteObjectClusters[rootId] = cluster;
 
         return { '@remote': uniqid };
     }
@@ -210,23 +212,25 @@ export class RPC {
         this.extendedRPCs.push(rpc);
     }
 
-    public getHandler(method: string) {
-        let f, matches;
-        if (this._callings.has(method)) {
-            f = this._callings.get(method);
-        } else {
-            for (let { pattern, callback } of this._patterns) {
-                matches = method.match(pattern);
-                if (matches) {
-                    f = callback;
-                    break;
-                }
+    private getHandler(method: string): [Function, RegExpMatchArray?] {
+        if (this._callingHandlers.hasOwnProperty(method)) {
+            const handler = this._callingHandlers[method];
+            if (handler.once) {
+                delete this._callingHandlers[method];
+            }
+            return [handler.callback];
+        }
+
+        for (let p of this._patterns) {
+            const matches = method.match(p.pattern);
+            if (matches) {
+                return [p.callback, matches];
             }
         }
-        return [f, matches];
+        return [undefined];
     }
 
-    public async receive(request: any): Promise<void> {
+    public receive(request: any): Promise<void> {
         if (typeof request === 'string') {
             try {
                 request = JSON.parse(request);
@@ -242,7 +246,8 @@ export class RPC {
         }
 
         if (Reflect.has(request, 'method')) {
-            let { method, params } = request;
+            let method = request.method;
+            let params = request.params;
 
             let remote;
             if (method.slice(-1) === '$') {
@@ -274,37 +279,36 @@ export class RPC {
                 params = [params];
             }
 
-            try {
-                let result;
-                if (matches) {
-                    params = [params, matches];
-                }
-
-                result = await Promise.resolve(f(...params));
-                if (remote) {
-                    // encode result and add ref
-                    result = this.makeRemoteObject(result);
-                }
-                if (request.id) {
-                    this.sendResult(result, request.id);
-                }
-            } catch (e) {
-                if (e instanceof RPCError) {
-                    this.sendError(e, request.id);
-                } else {
-                    throw e;
-                }
+            if (matches) {
+                params = [params, matches];
             }
+            return Promise.resolve(f(...params))
+                .then((result) => {
+                    if (remote) {
+                        // encode result and add ref
+                        result = this.makeRemoteObject(result);
+                    }
+                    if (request.id) {
+                        this.sendResult(result, request.id);
+                    }
+                })
+                .catch((e) => {
+                    if (e instanceof RPCError) {
+                        this.sendError(e, request.id);
+                    } else {
+                        throw e;
+                    }
+                });
         } else if (Reflect.has(request, 'error')) {
-            if (request.id && this._promises.has(request.id)) {
-                let promise = this._promises.get(request.id);
+            if (request.id && this._promises.hasOwnProperty(request.id)) {
+                let promise = this._promises[request.id];
                 promise.reject(request.error);
                 clearTimeout(promise.timeout);
-                this._promises.delete(request.id);
+                delete this._promises[request.id];
             }
         } else if (Reflect.has(request, 'result')) {
-            if (request.id && this._promises.has(request.id)) {
-                let promise = this._promises.get(request.id);
+            if (request.id && this._promises.hasOwnProperty(request.id)) {
+                let promise = this._promises[request.id];
                 let result = request.result;
                 if (result && typeof result === 'object' && Reflect.has(result, '@remote')) {
                     const self = this;
@@ -358,10 +362,11 @@ export class RPC {
                 }
                 promise.resolve(result);
                 clearTimeout(promise.timeout);
-                this._promises.delete(request.id);
+                delete this._promises[request.id];
             }
         }
         // TODO: log the rest
+        return Promise.resolve();
     }
 
     public sendResult(result: any, id?: string) {
@@ -410,41 +415,43 @@ export class RPC {
 
             self.send(data);
 
-            self._promises.set(id, {
+            self._promises[id] = {
                 resolve,
                 reject,
                 timeout: setTimeout(() => {
-                    self._promises.delete(id);
+                    delete self._promises[id];
                     reject(new RPCError(`Call ${method} Timeout`, -32603));
                 }, self._options.timeout),
-            });
+            };
         });
     }
 
-    public on(method: string | RegExp, cb: Function) {
+    public once(method: string, callback: Function) {
+        return this.on(method, callback, true);
+    }
+
+    public on(method: string | RegExp, callback: Function, once = false) {
         if (typeof method !== 'string') {
             this._patterns.push({
                 pattern: method,
-                callback: cb,
+                callback,
             });
         } else {
-            this._callings.set(method, cb);
+            this._callingHandlers[method] = { callback, once };
         }
         return this;
     }
 
     public off(method: string | RegExp) {
         if (typeof method !== 'string') {
-            for (let key in this._callings.keys()) {
-                if (key.match(method) != null) this._callings.delete(key);
+            for (let key in this._callingHandlers) {
+                if (key.match(method) != null) delete this._callingHandlers[key];
             }
 
             let str = method.toString();
-            this._patterns = this._patterns.filter(({ pattern }) => pattern.toString() !== str);
+            this._patterns = this._patterns.filter((p) => p.pattern.toString() !== str);
         } else {
-            if (this._callings.has(method)) {
-                this._callings.delete(method);
-            }
+            delete this._callingHandlers[method];
         }
         return this;
     }
