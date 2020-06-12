@@ -12,7 +12,6 @@ export default [
             exports: 'named',
             sourcemap: true,
         },
-        external: ['hash-sum', 'nanoid/non-secure'],
         plugins: [typescript({ declaration: true, declarationDir: 'lib' }), resolve(), commonjs(), terser()],
     },
     {
@@ -22,7 +21,6 @@ export default [
             file: 'lib/index.mjs',
             sourcemap: true,
         },
-        external: ['hash-sum', 'nanoid/non-secure'],
         plugins: [typescript(), resolve(), commonjs(), terser()],
     },
     {
@@ -40,7 +38,6 @@ export default [
                 sourcemap: true,
             },
         ],
-        external: ['hash-sum', 'nanoid/non-secure'],
         plugins: [typescript(), resolve(), commonjs(), terser()],
     },
 ];

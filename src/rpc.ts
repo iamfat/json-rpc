@@ -1,7 +1,19 @@
 import hash_sum from 'hash-sum';
-import * as N from 'nanoid/non-secure';
 
-const nanoid = N.nanoid;
+const customAlphabet = (alphabet) => {
+    return (size) => {
+        let id = '';
+        // A compact alternative for `for (var i = 0; i < step; i++)`.
+        let i = size;
+        while (i--) {
+            // `| 0` is more compact and faster than `Math.floor()`.
+            id += alphabet[(Math.random() * alphabet.length) | 0];
+        }
+        return id;
+    };
+};
+
+const nanoid = customAlphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyz');
 
 export class RPCError extends Error {
     public message: string;
@@ -198,7 +210,7 @@ export class RPC {
     }
 
     private makeRemoteObject(obj: any, remoteId?: string) {
-        const uniqid = nanoid();
+        const uniqid = nanoid(16);
         this._remoteObjects[uniqid] = obj;
 
         const rootId = remoteId || uniqid;
@@ -407,7 +419,7 @@ export class RPC {
         params = this.encodeNonScalars(params);
         let self = this;
         return new Promise((resolve, reject) => {
-            let id = nanoid();
+            let id = nanoid(8);
             let data = {
                 id,
                 jsonrpc: '2.0',
