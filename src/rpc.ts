@@ -1,5 +1,5 @@
-import hash_sum from 'hash-sum';
-import { nanoid } from 'nanoid/non-secure';
+const hash_sum = require('hash-sum');
+const { nanoid } = require('nanoid/non-secure');
 
 export class RPCError extends Error {
     public message: string;
