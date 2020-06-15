@@ -73,6 +73,7 @@ export class RPC {
     private _hashedFunctions: { [hash: string]: Function } = {};
     private _remoteObjects: { [id: string]: any } = {};
     private _remoteObjectClusters: { [id: string]: string[] } = {};
+    private _proxiedRemoteObjects: { [id: string]: boolean } = {};
 
     public constructor(send: RPCSend, options?: RPCOptions) {
         this.send = send;
@@ -163,13 +164,18 @@ export class RPC {
                                 return target[prop];
                             }
                             if (sProp === 'release') {
-                                return () => {
+                                target.release = () => {
                                     self.notify('_.Function.release', [param.hash]);
+                                    target.release = () => {};
+                                    target.release.BEEN_CALLED = true;
                                 };
+                                return target.release;
                             }
                         },
-                        apply(_, __, params) {
-                            self.notify('_.Function.call', [param.hash, params]);
+                        apply(target, __, params) {
+                            if (!target.release || target.release.BEEN_CALLED === undefined) {
+                                self.notify('_.Function.call', [param.hash, params]);
+                            }
                         },
                     } as ProxyHandler<any>);
                 } else {
@@ -337,7 +343,7 @@ export class RPC {
                         get(target, prop) {
                             // 有可能被通过then来判断是否是个promise
                             const sProp = String(prop);
-                            if (sProp === 'then' || sProp.slice(0, 1) === '$$') {
+                            if (sProp === 'then' || sProp.slice(0, 2) === '$$') {
                                 return undefined;
                             }
                             if (Reflect.has(target, prop)) {
@@ -355,17 +361,23 @@ export class RPC {
                             return target.$$cache[prop];
                         },
                         apply(target, _, params) {
-                            return self.call('_.RemoteObject.apply', [remoteId, target.$$baseName, params]);
+                            return (
+                                self._proxiedRemoteObjects[remoteId] &&
+                                self.call('_.RemoteObject.apply', [remoteId, target.$$baseName, params])
+                            );
                         },
                     };
 
+                    self._proxiedRemoteObjects[remoteId] = true;
                     const $$cache = {} as any;
                     result = new Proxy(
                         Object.assign(() => {}, {
                             $$cache,
                             release$() {
                                 Object.keys($$cache).forEach((prop) => delete $$cache[prop]);
-                                return self.call('_.RemoteObject.release', [remoteId]);
+                                return self.call('_.RemoteObject.release', [remoteId]).finally(() => {
+                                    delete self._proxiedRemoteObjects[remoteId];
+                                });
                             },
                             get$() {
                                 return self.call('_.RemoteObject.get', [remoteId]);
