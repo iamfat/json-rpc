@@ -307,6 +307,8 @@ export class RPC {
                     if (remote) {
                         // encode result and add ref
                         result = this.makeRemoteObject(result);
+                    } else {
+                        result = this.encodeNonScalars(result);
                     }
                     if (request.id) {
                         this.sendResult(result, request.id);
@@ -385,6 +387,8 @@ export class RPC {
                         }),
                         RemoteObjectHandler,
                     );
+                } else {
+                    result = this.decodeNonScalars(result);
                 }
                 promise.resolve(result);
                 clearTimeout(promise.timeout);

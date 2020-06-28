@@ -95,4 +95,23 @@ describe('JSON-RPC', () => {
             bytes,
         });
     });
+
+    it('should encode buffers in result', (done) => {
+        const rpcSender = new JsonRPC((request) => {
+            rpcReceiver.receive(request);
+        });
+        const rpcReceiver = new JsonRPC((request) => {
+            rpcSender.receive(request);
+        });
+
+        const bytes = Buffer.from(require('crypto').randomBytes(16));
+        rpcReceiver.on('hello', async () => {
+            return bytes;
+        });
+
+        rpcSender.call('hello').then((o) => {
+            expect(o).toEqual(bytes);
+            done();
+        });
+    });
 });
