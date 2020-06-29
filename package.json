@@ -1,8 +1,9 @@
 {
   "name": "@genee/json-rpc",
-  "version": "1.0.16",
+  "version": "1.0.17",
   "main": "lib/index",
   "browser": "lib/index.browser",
+  "react-native": "lib/index.rn",
   "author": "Jia Huang <iamfat@gmail.com>",
   "license": "MIT",
   "devDependencies": {
@@ -13,7 +14,6 @@
     "hash-sum": "^2.0.0",
     "jasmine": "^3.5.0",
     "rollup": "^2.2.0",
-    "rollup-plugin-terser": "^5.3.0",
     "temp-dir": "^2.0.0",
     "tslib": "^2.0.0",
     "typescript": "^3.9.5"
@@ -21,5 +21,10 @@
   "scripts": {
     "build": "rollup -c"
   },
-  "dependencies": {}
+  "dependencies": {
+    "rollup-plugin-terser": "^6.1.0"
+  },
+  "peerDependencies": {
+    "js-base64": "^2.6.2"
+  }
 }

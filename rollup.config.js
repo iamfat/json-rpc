@@ -10,18 +10,19 @@ export default [
             format: 'cjs',
             dir: 'lib',
             exports: 'named',
-            sourcemap: true,
+            compact: true,
         },
         plugins: [typescript({ declaration: true, declarationDir: 'lib' }), resolve(), commonjs(), terser()],
+        external: ['js-base64'],
     },
     {
         input: 'src/index.ts',
         output: {
             format: 'esm',
             file: 'lib/index.mjs',
-            sourcemap: true,
         },
         plugins: [typescript(), resolve(), commonjs(), terser()],
+        external: ['js-base64'],
     },
     {
         input: 'src/index.browser.ts',
@@ -29,15 +30,32 @@ export default [
             {
                 format: 'esm',
                 file: 'lib/index.browser.mjs',
-                sourcemap: true,
             },
             {
                 format: 'cjs',
                 file: 'lib/index.browser.js',
                 exports: 'named',
-                sourcemap: true,
+                compact: true,
             },
         ],
         plugins: [typescript(), resolve(), commonjs(), terser()],
+        external: ['js-base64'],
+    },
+    {
+        input: 'src/index.rn.ts',
+        output: [
+            {
+                format: 'esm',
+                file: 'lib/index.rn.mjs',
+            },
+            {
+                format: 'cjs',
+                file: 'lib/index.rn.js',
+                exports: 'named',
+                compact: true,
+            },
+        ],
+        plugins: [typescript({ sourceMap: false }), resolve(), commonjs(), terser()],
+        external: ['js-base64'],
     },
 ];
