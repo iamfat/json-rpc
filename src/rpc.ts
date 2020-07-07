@@ -325,7 +325,7 @@ export class RPC {
             if (request.id && this._promises.hasOwnProperty(request.id)) {
                 let promise = this._promises[request.id];
                 promise.reject(request.error);
-                clearTimeout(promise.timeout);
+                promise.timeout && clearTimeout(promise.timeout);
                 delete this._promises[request.id];
             }
         } else if (Reflect.has(request, 'result')) {
@@ -391,7 +391,7 @@ export class RPC {
                     result = this.decodeNonScalars(result);
                 }
                 promise.resolve(result);
-                clearTimeout(promise.timeout);
+                promise.timeout && clearTimeout(promise.timeout);
                 delete this._promises[request.id];
             }
         }
@@ -431,7 +431,7 @@ export class RPC {
         });
     }
 
-    public call(method: string, params: any = {}) {
+    public call(method: string, params: any = {}, timeout?: number) {
         params = this.encodeNonScalars(params);
         let self = this;
         return new Promise((resolve, reject) => {
@@ -445,13 +445,17 @@ export class RPC {
 
             self.send(data);
 
+            timeout = timeout || self._options.timeout;
             self._promises[id] = {
                 resolve,
                 reject,
-                timeout: setTimeout(() => {
-                    delete self._promises[id];
-                    reject(new RPCError(`Call ${method} Timeout`, -32603));
-                }, self._options.timeout),
+                timeout:
+                    timeout === -1
+                        ? undefined
+                        : setTimeout(() => {
+                              delete self._promises[id];
+                              reject(new RPCError(`Call ${method} Timeout`, -32603));
+                          }, timeout),
             };
         });
     }
