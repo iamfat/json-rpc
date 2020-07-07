@@ -174,7 +174,7 @@ export class RPC {
                         },
                         apply(target, __, params) {
                             if (!target.release || target.release.BEEN_CALLED === undefined) {
-                                self.notify('_.Function.call', [param.hash, params]);
+                                return self.call('_.Function.call', [param.hash, params]);
                             }
                         },
                     } as ProxyHandler<any>);
