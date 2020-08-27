@@ -5,6 +5,7 @@
     "noImplicitAny": false,
     "rootDir": "./src",
     "sourceMap": false,
+    "moduleResolution": "node"
   },
   "include": [
     "src/**/*"
