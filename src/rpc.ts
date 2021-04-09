@@ -52,11 +52,23 @@ interface RPCPattern {
 interface RPCPromise {
     resolve: Function;
     reject: Function;
-    timeout: any;
+    timeout: string;
 }
 
 export type RPCSend = (data: any) => void;
 export type RPCOptions = { timeout?: number };
+
+const rpcTimeout: { [key: string]: { expires: number; callback: () => void } } = {};
+setInterval(() => {
+    const now = Date.now();
+    Object.keys(rpcTimeout).forEach((timeoutId) => {
+        const { expires, callback } = rpcTimeout[timeoutId];
+        if (now >= expires) {
+            delete rpcTimeout[timeoutId];
+            callback();
+        }
+    });
+}, 500);
 
 export class RPC {
     public send: RPCSend;
@@ -150,12 +162,27 @@ export class RPC {
         });
     }
 
+    public stat() {
+        const objects = {};
+        Object.keys(this._remoteObjectClusters).forEach((remoteId) => {
+            objects[remoteId] = {};
+            (this._remoteObjectClusters[remoteId] || []).forEach((key) => {
+                objects[remoteId][key] = this._remoteObjects[key];
+            });
+        });
+        return {
+            functions: this._hashedFunctions,
+            objects,
+        };
+    }
+
     private decodeNonScalars(params: any) {
         const self = this;
 
         const _decode = (param: any): any => {
             if (param === Object(param)) {
                 if (param['@func'] === '1.0' && Reflect.has(param, 'hash')) {
+                    let hash = param.hash;
                     return new Proxy(() => {}, {
                         get(target, prop) {
                             // 有可能被通过then来判断是否是个promise
@@ -165,16 +192,19 @@ export class RPC {
                             }
                             if (sProp === 'release') {
                                 target.release = () => {
-                                    self.notify('_.Function.release', [param.hash]);
+                                    self.notify('_.Function.release', [hash]);
                                     target.release = () => {};
                                     target.release.BEEN_CALLED = true;
                                 };
                                 return target.release;
                             }
+                            if (sProp === '$notify') {
+                                target.$notify = (...params) => self.notify('_.Function.call', [hash, params]);
+                            }
                         },
                         apply(target, __, params) {
                             if (!target.release || target.release.BEEN_CALLED === undefined) {
-                                return self.call('_.Function.call', [param.hash, params]);
+                                return self.call('_.Function.call', [hash, params]);
                             }
                         },
                     } as ProxyHandler<any>);
@@ -302,30 +332,37 @@ export class RPC {
             if (matches) {
                 params = [params, matches];
             }
-            return Promise.resolve(f(...params))
-                .then((result) => {
-                    if (remote) {
-                        // encode result and add ref
-                        result = this.makeRemoteObject(result);
-                    } else {
-                        result = this.encodeNonScalars(result);
-                    }
-                    if (request.id) {
-                        this.sendResult(result, request.id);
-                    }
-                })
-                .catch((e) => {
-                    if (e instanceof RPCError) {
-                        this.sendError(e, request.id);
-                    } else {
-                        throw e;
-                    }
-                });
+
+            const sendError = (e: Error) => {
+                if (e instanceof RPCError) {
+                    this.sendError(e, request.id);
+                } else {
+                    throw e;
+                }
+            };
+
+            try {
+                return Promise.resolve(f(...params))
+                    .then((result) => {
+                        if (remote) {
+                            // encode result and add ref
+                            result = this.makeRemoteObject(result);
+                        } else {
+                            result = this.encodeNonScalars(result);
+                        }
+                        if (request.id) {
+                            this.sendResult(result, request.id);
+                        }
+                    })
+                    .catch(sendError);
+            } catch (e) {
+                sendError(e);
+            }
         } else if (Reflect.has(request, 'error')) {
             if (request.id && this._promises.hasOwnProperty(request.id)) {
                 let promise = this._promises[request.id];
                 promise.reject(request.error);
-                promise.timeout && clearTimeout(promise.timeout);
+                promise.timeout && delete rpcTimeout[promise.timeout];
                 delete this._promises[request.id];
             }
         } else if (Reflect.has(request, 'result')) {
@@ -391,7 +428,7 @@ export class RPC {
                     result = this.decodeNonScalars(result);
                 }
                 promise.resolve(result);
-                promise.timeout && clearTimeout(promise.timeout);
+                promise.timeout && delete rpcTimeout[promise.timeout];
                 delete this._promises[request.id];
             }
         }
@@ -446,16 +483,23 @@ export class RPC {
             self.send(data);
 
             timeout = timeout || self._options.timeout;
+
+            let timeoutId: string;
+            if (timeout !== -1) {
+                timeoutId = nanoid(8);
+                rpcTimeout[timeoutId] = {
+                    expires: Date.now() + timeout,
+                    callback: () => {
+                        delete self._promises[id];
+                        reject(new RPCError(`Call ${method} Timeout`, -32603));
+                    },
+                };
+            }
+
             self._promises[id] = {
                 resolve,
                 reject,
-                timeout:
-                    timeout === -1
-                        ? undefined
-                        : setTimeout(() => {
-                              delete self._promises[id];
-                              reject(new RPCError(`Call ${method} Timeout`, -32603));
-                          }, timeout),
+                timeout: timeoutId,
             };
         });
     }

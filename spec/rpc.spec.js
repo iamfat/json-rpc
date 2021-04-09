@@ -11,6 +11,19 @@ describe('JSON-RPC', () => {
         rpc.call('hello', ['world']);
     });
 
+    it('should support timeout', (done) => {
+        const rpc = new JsonRPC((request) => {
+            // DO NOTHING BUT IDLE
+        });
+
+        const now = Date.now();
+        rpc.call('hello', ['world'], 1000).catch((e) => {
+            expect(e.code).toBe(-32603);
+            expect(Date.now() - now > 1000);
+            done();
+        });
+    });
+
     it('should be called', (done) => {
         const rpc = new JsonRPC(() => {});
         rpc.on('hello', (...args) => {

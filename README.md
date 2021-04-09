@@ -18,4 +18,7 @@ rpc.receive(data) // process the data you received
 rpc.on('xxx', () => {})
 await rpc.call('xxx', params)
 await rpc.notify('xxx', params)
+
+// get referenced functions and objects
+const { functions, objects } = rpc.stat();
 ```
