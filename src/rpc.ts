@@ -176,6 +176,10 @@ export class RPC {
         };
     }
 
+    public setTimeout(timeout: number) {
+        this._options.timeout = timeout;
+    }
+
     private decodeNonScalars(params: any) {
         const self = this;
 
@@ -439,7 +443,7 @@ export class RPC {
     public sendResult(result: any, id?: string) {
         const data: any = {
             jsonrpc: '2.0',
-            result: result || null,
+            result: result === undefined ? null : result,
         };
         if (id) data.id = id;
         this.send(data);
