@@ -477,10 +477,9 @@ class RPC {
     }
 
     public notify(method: string, params: any = {}) {
-        if (!this.ready) {
-            return Promise.reject('RPC is not ready yet');
+        if (this.ready) {
+            this.sendRequest(method, this.encodeNonScalars(params));
         }
-        this.sendRequest(method, this.encodeNonScalars(params));
     }
 
     public call(method: string, params: any = {}, timeout?: number) {
