@@ -55,7 +55,7 @@ interface RPCPromise {
     timeout: string;
 }
 
-export type RPCSend = (data: any) => void;
+export type RPCSend = (data: any) => Promise<void> | void;
 export type RPCOptions = { timeout?: number };
 
 const rpcTimeout: { [key: string]: { expires: number; callback: () => void } } = {};
@@ -187,7 +187,7 @@ export class RPC {
             if (param === Object(param)) {
                 if (param['@func'] === '1.0' && Reflect.has(param, 'hash')) {
                     let hash = param.hash;
-                    return new Proxy(() => {}, {
+                    return new Proxy(() => { }, {
                         get(target, prop) {
                             // 有可能被通过then来判断是否是个promise
                             const sProp = String(prop);
@@ -197,7 +197,7 @@ export class RPC {
                             if (sProp === 'release') {
                                 target.release = () => {
                                     self.notify('_.Function.release', [hash]);
-                                    target.release = () => {};
+                                    target.release = () => { };
                                     target.release.BEEN_CALLED = true;
                                 };
                                 return target.release;
@@ -394,7 +394,7 @@ export class RPC {
                             }
                             if (!Reflect.has(target.$$cache, prop)) {
                                 target.$$cache[prop] = new Proxy(
-                                    Object.assign(() => {}, {
+                                    Object.assign(() => { }, {
                                         $$baseName: target.$$baseName ? `${target.$$baseName}.${sProp}` : sProp,
                                         $$cache: {},
                                     }),
@@ -414,7 +414,7 @@ export class RPC {
                     self._proxiedRemoteObjects[remoteId] = true;
                     const $$cache = {} as any;
                     result = new Proxy(
-                        Object.assign(() => {}, {
+                        Object.assign(() => { }, {
                             $$cache,
                             release$() {
                                 Object.keys($$cache).forEach((prop) => delete $$cache[prop]);
@@ -446,8 +446,7 @@ export class RPC {
             result: result === undefined ? null : result,
         };
         if (id) data.id = id;
-        this.send(data);
-        return this;
+        return Promise.resolve(this.send(data)).catch(() => { });;
     }
 
     public sendError(e: RPCError, id?: string) {
@@ -459,34 +458,41 @@ export class RPC {
             },
         };
         if (id) data.id = id;
-        this.send(data);
-        return this;
+        return Promise.resolve(this.send(data)).catch(() => { });;
     }
 
-    public notify(method: string, params: any = {}) {
-        params = this.encodeNonScalars(params);
-        this.send({
+    public sendRequest(method: string, params: any[], id?: string) {
+        const data: any = {
             jsonrpc: '2.0',
             method,
             params,
-        });
+        };
+        if (id) data.id = id;
+        return Promise.resolve(this.send(data)).catch(() => { });
+    }
+
+    private ready = true;
+    public setReady(ready = true) {
+        this.ready = ready;
+    }
+
+    public notify(method: string, params: any = {}) {
+        if (!this.ready) {
+            return Promise.reject('RPC is not ready yet');
+        }
+        this.sendRequest(method, this.encodeNonScalars(params));
     }
 
     public call(method: string, params: any = {}, timeout?: number) {
+        if (!this.ready) {
+            return Promise.reject('RPC is not ready yet');
+        }
         params = this.encodeNonScalars(params);
-        let self = this;
         return new Promise((resolve, reject) => {
             let id = nanoid(8);
-            let data = {
-                id,
-                jsonrpc: '2.0',
-                method,
-                params,
-            };
+            this.sendRequest(method, this.encodeNonScalars(params), id);
 
-            self.send(data);
-
-            timeout = timeout || self._options.timeout;
+            timeout = timeout || this._options.timeout;
 
             let timeoutId: string;
             if (timeout !== -1) {
@@ -494,13 +500,13 @@ export class RPC {
                 rpcTimeout[timeoutId] = {
                     expires: Date.now() + timeout,
                     callback: () => {
-                        delete self._promises[id];
+                        delete this._promises[id];
                         reject(new RPCError(`Call ${method} Timeout`, -32603));
                     },
                 };
             }
 
-            self._promises[id] = {
+            this._promises[id] = {
                 resolve,
                 reject,
                 timeout: timeoutId,
