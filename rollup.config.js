@@ -12,13 +12,23 @@ export default [
             exports: 'named',
             compact: true,
         },
-        plugins: [typescript({ declaration: true, declarationDir: 'lib' }), resolve(), commonjs(), terser()],
+        plugins: [
+            typescript({
+                declaration: true,
+                declarationDir: 'lib',
+                declarationMap: false,
+                exclude: ['src/index.*.ts'],
+            }),
+            resolve(),
+            commonjs(),
+            terser(),
+        ],
         external: ['js-base64'],
     },
     {
         input: 'src/index.ts',
         output: {
-            format: 'esm',
+            format: 'es',
             file: 'lib/index.mjs',
         },
         plugins: [typescript(), resolve(), commonjs(), terser()],
@@ -28,7 +38,7 @@ export default [
         input: 'src/index.browser.ts',
         output: [
             {
-                format: 'esm',
+                format: 'es',
                 file: 'lib/index.browser.mjs',
             },
             {
@@ -45,7 +55,7 @@ export default [
         input: 'src/index.rn.ts',
         output: [
             {
-                format: 'esm',
+                format: 'es',
                 file: 'lib/index.rn.mjs',
             },
             {

@@ -1,5 +1,4 @@
-export * from './rpc';
-import { RPC } from './rpc';
+import { RPC } from './RPC';
 import { Base64 } from 'js-base64';
 
 Object.assign(RPC, {
@@ -12,4 +11,9 @@ Object.assign(RPC, {
     },
 });
 
+export type { RPCSend, RPCOptions } from './RPC';
+export { RPCError } from './RPC';
+export * from './SmartRPC';
+export { RPC };
 export default RPC;
+

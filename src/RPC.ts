@@ -55,8 +55,8 @@ interface RPCPromise {
     timeout: string;
 }
 
-export type RPCSend = (data: any) => Promise<void> | void;
-export type RPCOptions = { timeout?: number };
+type RPCSend = (data: any) => Promise<void> | void;
+type RPCOptions = { timeout?: number };
 
 const rpcTimeout: { [key: string]: { expires: number; callback: () => void } } = {};
 setInterval(() => {
@@ -70,7 +70,7 @@ setInterval(() => {
     });
 }, 500);
 
-export class RPC {
+class RPC {
     public send: RPCSend;
     public static Error = RPCError;
     public static isBuffer: Function;
@@ -544,3 +544,7 @@ export class RPC {
         return this;
     }
 }
+
+export type { RPCSend, RPCOptions };
+export { RPC };
+export default RPC;

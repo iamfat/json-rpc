@@ -1,5 +1,4 @@
-export * from './rpc';
-import { RPC } from './rpc';
+import { RPC } from './RPC';
 
 Object.assign(RPC, {
     isBuffer: (value) => value instanceof ArrayBuffer || toString.call(value) === '[object ArrayBuffer]',
@@ -11,4 +10,8 @@ Object.assign(RPC, {
     },
 });
 
+export type { RPCSend, RPCOptions } from './RPC';
+export { RPCError } from './RPC';
+export * from './SmartRPC';
+export { RPC };
 export default RPC;
