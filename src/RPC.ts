@@ -50,13 +50,24 @@ interface RPCPattern {
 }
 
 interface RPCPromise {
+    method: string;
+    params: any[];
     resolve: Function;
     reject: Function;
     timeout: string;
 }
 
+type LogFn = (message?: any, ...optionalParams: any[]) => void;
+
+type CommonLogger = {
+    info: LogFn;
+    debug: LogFn;
+    warn: LogFn;
+    error: LogFn;
+}
+
 type RPCSend = (data: any) => Promise<void> | void;
-type RPCOptions = { timeout?: number };
+type RPCOptions = { timeout?: number; logger?: CommonLogger };
 
 const rpcTimeout: { [key: string]: { expires: number; callback: () => void } } = {};
 setInterval(() => {
@@ -116,7 +127,7 @@ class RPC {
                 }
                 Reflect.set(o, lastProp, value);
             } catch (e) {
-                console.debug(e);
+                this._options.logger?.debug(e);
             }
         });
 
@@ -127,7 +138,7 @@ class RPC {
                     return JSON.parse(JSON.stringify(o));
                 })
                 .catch((e) => {
-                    console.debug('_.RemoteObject.get error', e);
+                    this._options.logger?.debug('_.RemoteObject.get error', e);
                 });
         });
 
@@ -365,6 +376,9 @@ class RPC {
         } else if (Reflect.has(request, 'error')) {
             if (request.id && this._promises.hasOwnProperty(request.id)) {
                 let promise = this._promises[request.id];
+                this._options.logger?.debug(`call ${promise.method} -> error ${request.error.code}`, {
+                    method: promise.method, params: promise.params, error: request.error
+                });
                 promise.reject(request.error);
                 promise.timeout && delete rpcTimeout[promise.timeout];
                 delete this._promises[request.id];
@@ -373,6 +387,9 @@ class RPC {
             if (request.id && this._promises.hasOwnProperty(request.id)) {
                 let promise = this._promises[request.id];
                 let result = request.result;
+                this._options.logger?.debug(`${promise.method} -> success`, {
+                    method: promise.method, params: promise.params, result: request.result
+                });
                 if (result && typeof result === 'object' && Reflect.has(result, '@remote')) {
                     const self = this;
                     const remoteId = result['@remote'];
@@ -478,6 +495,7 @@ class RPC {
 
     public notify(method: string, params: any = {}) {
         if (this.ready) {
+            this._options.logger?.debug(`notify ${method}`, { method, params });
             this.sendRequest(method, this.encodeNonScalars(params));
         }
     }
@@ -486,7 +504,6 @@ class RPC {
         if (!this.ready) {
             return Promise.reject('RPC is not ready yet');
         }
-        params = this.encodeNonScalars(params);
         return new Promise((resolve, reject) => {
             let id = nanoid(8);
             this.sendRequest(method, this.encodeNonScalars(params), id);
@@ -506,6 +523,8 @@ class RPC {
             }
 
             this._promises[id] = {
+                method,
+                params,
                 resolve,
                 reject,
                 timeout: timeoutId,
