@@ -387,7 +387,7 @@ class RPC {
             if (request.id && this._promises.hasOwnProperty(request.id)) {
                 let promise = this._promises[request.id];
                 let result = request.result;
-                this._options.logger?.debug(`${promise.method} -> success`, {
+                this._options.logger?.debug(`call ${promise.method} -> success`, {
                     method: promise.method, params: promise.params, result: request.result
                 });
                 if (result && typeof result === 'object' && Reflect.has(result, '@remote')) {
