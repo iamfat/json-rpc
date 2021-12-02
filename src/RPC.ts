@@ -517,7 +517,7 @@ class RPC {
                     expires: Date.now() + timeout,
                     callback: () => {
                         delete this._promises[id];
-                        reject(new RPCError(`Call ${method} Timeout`, -32603));
+                        reject(new RPCError(`Call timeout`, -32603));
                     },
                 };
             }
