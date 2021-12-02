@@ -6,11 +6,14 @@ yarn add git+https://github.com/iamfat/json-rpc.git
 ```
 
 ## Usage
-```javascript
-import JsonRPC from 'json-rpc'
+### General
+```typescript
+import JsonRPC from '@genee/json-rpc'
 
 const rpc = new JsonRPC(data => {
     // send your data with your customized function
+}, {
+    // logger?: console // you may customize your own logger 
 })
 
 rpc.receive(data) // process the data you received
@@ -21,4 +24,19 @@ await rpc.notify('xxx', params)
 
 // get referenced functions and objects
 const { functions, objects } = rpc.stat();
+```
+
+### SmartRPC
+```typescript
+import JsonRPC, { Smartify } from '@genee/json-rpc';
+
+const SmartRPC = Smaritfy(JsonRPC);
+const rpc = new SmartRPC(data => {
+    // do your sending
+})
+
+rpc.receive(data); // process data you received
+
+await rpc.Namespace1.Namespace2.Method1('hello'); // == rpc.call('Namespace1.Namespace2.Method1', ['hello'])
+
 ```
