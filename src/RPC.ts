@@ -502,7 +502,7 @@ class RPC {
 
     public call(method: string, params: any = {}, timeout?: number) {
         if (!this.ready) {
-            return Promise.reject('RPC is not ready yet');
+            return Promise.reject(new RPCError('RPC is not ready yet', -32601));
         }
         return new Promise((resolve, reject) => {
             let id = nanoid(8);
@@ -517,7 +517,7 @@ class RPC {
                     expires: Date.now() + timeout,
                     callback: () => {
                         delete this._promises[id];
-                        reject(new RPCError(`Call timeout`, -32603));
+                        reject(new RPCError('Call timeout', -32603));
                     },
                 };
             }

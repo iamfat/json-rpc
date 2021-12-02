@@ -22,6 +22,9 @@ rpc.on('xxx', () => {})
 await rpc.call('xxx', params)
 await rpc.notify('xxx', params)
 
+rpc.setReady(false); 
+rpc.setReady(true);
+
 // get referenced functions and objects
 const { functions, objects } = rpc.stat();
 ```
