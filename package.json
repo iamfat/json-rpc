@@ -1,10 +1,9 @@
 {
   "name": "@genee/json-rpc",
-  "version": "1.4.3",
+  "version": "1.4.7",
   "main": "lib/index",
   "browser": "lib/index.browser",
   "react-native": "lib/index.rn",
-  "types": "lib/index.d.ts",
   "author": "Jia Huang <iamfat@gmail.com>",
   "license": "MIT",
   "devDependencies": {
