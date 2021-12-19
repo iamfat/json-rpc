@@ -4,7 +4,11 @@ type SmartRPCNode = {
     [prop: string | symbol]: SmartRPCNode;
 } & ((...args: any[]) => Promise<any>);
 
-function SmartifyInstance<T extends RPC>(rpc: T) {
+type SmartifyOptions = {
+    exclude: (string | symbol)[];
+};
+
+function SmartifyInstance<T extends RPC>(rpc: T, options?: SmartifyOptions) {
     const rpcHandler = {
         get(target: any, prop: any) {
             if (target.$rpcMethod && prop === '$notify') {
@@ -32,9 +36,10 @@ function SmartifyInstance<T extends RPC>(rpc: T) {
     };
 
     const $cache: any = {};
+    const { exclude = ['then', 'catch', 'finally'] } = { ...options };
     return new Proxy(rpc, {
-        get(target: any, prop: any) {
-            if (Reflect.has(target, prop)) {
+        get(target: any, prop: string | symbol) {
+            if (Reflect.has(target, prop) || exclude.includes(prop)) {
                 return target[prop];
             }
             if (!Reflect.has($cache, prop)) {
@@ -52,15 +57,15 @@ function SmartifyInstance<T extends RPC>(rpc: T) {
 }
 
 interface SmartRPC<T = RPC> extends RPC {
-    new(...args: any[]): SmartRPC<T>;
+    new (...args: any[]): SmartRPC<T>;
     [prop: string]: SmartRPCNode | any;
 }
 
 // new <T extends object>(target: T, handler: ProxyHandler<T>): T;
-function Smartify<T extends object>(target: T) {
+function Smartify<T extends object>(target: T, options?: SmartifyOptions) {
     return new Proxy(target, {
         construct(targetClass, args: any[]) {
-            return SmartifyInstance(Reflect.construct(targetClass as Function, args));
+            return SmartifyInstance(Reflect.construct(targetClass as Function, args), options);
         },
     }) as unknown as SmartRPC<T>;
 }
