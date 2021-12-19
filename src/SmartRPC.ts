@@ -1,8 +1,13 @@
 import { RPC } from './RPC';
 
-type SmartRPCNode = {
+type SmartRPCNode<T = {}> = T & {
     [prop: string | symbol]: SmartRPCNode;
 } & ((...args: any[]) => Promise<any>);
+
+interface SmartRPC<T = RPC> extends RPC {
+    new (...args: any[]): SmartRPC<T>;
+    [prop: string]: SmartRPCNode | any;
+}
 
 type SmartifyOptions = {
     exclude: (string | symbol)[];
@@ -53,12 +58,7 @@ function SmartifyInstance<T extends RPC>(rpc: T, options?: SmartifyOptions) {
             }
             return $cache[prop];
         },
-    });
-}
-
-interface SmartRPC<T = RPC> extends RPC {
-    new (...args: any[]): SmartRPC<T>;
-    [prop: string]: SmartRPCNode | any;
+    }) as unknown as SmartRPCNode<T>;
 }
 
 // new <T extends object>(target: T, handler: ProxyHandler<T>): T;
