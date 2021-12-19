@@ -59,7 +59,7 @@ interface RPCPromise {
 
 type LogFn = (message?: any, ...optionalParams: any[]) => void;
 
-type CommonLogger = {
+type RPCLogger = {
     info: LogFn;
     debug: LogFn;
     warn: LogFn;
@@ -67,7 +67,7 @@ type CommonLogger = {
 };
 
 type RPCSend = (data: any) => Promise<void> | void;
-type RPCOptions = { timeout?: number; logger?: CommonLogger };
+type RPCOptions = { timeout?: number; logger?: RPCLogger };
 
 const rpcTimeout: { [key: string]: { expires: number; callback: () => void } } = {};
 setInterval(() => {
@@ -597,6 +597,6 @@ class RPC {
     }
 }
 
-export type { RPCSend, RPCOptions };
+export type { RPCSend, RPCOptions, RPCLogger };
 export { RPC };
 export default RPC;

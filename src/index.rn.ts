@@ -11,9 +11,6 @@ Object.assign(RPC, {
     },
 });
 
-export type { RPCSend, RPCOptions } from './RPC';
-export { RPCError } from './RPC';
+export * from './RPC';
 export * from './SmartRPC';
-export { RPC };
 export default RPC;
-

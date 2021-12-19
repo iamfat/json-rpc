@@ -6,9 +6,7 @@ Object.assign(RPC, {
     bufferDecode: (s: string) => Buffer.from(s, 'base64'),
 });
 
-export type { RPCSend, RPCOptions } from './RPC';
-export { RPCError } from './RPC';
+export * from './RPC';
 export * from './SmartRPC';
-export { RPC };
 export default RPC;
 
