@@ -1,6 +1,6 @@
 {
   "name": "@genee/json-rpc",
-  "version": "1.4.8",
+  "version": "1.5.0",
   "main": "lib/index",
   "browser": "lib/index.browser",
   "react-native": "lib/index.rn",
@@ -15,7 +15,6 @@
     "jasmine": "^3.10.0",
     "js-base64": "^3.4.5",
     "rollup": "^2.60.1",
-    "rollup-plugin-terser": "^6.1.0",
     "temp-dir": "^2.0.0",
     "tslib": "^2.3.1",
     "typescript": "^4.5.2"

@@ -64,7 +64,7 @@ type CommonLogger = {
     debug: LogFn;
     warn: LogFn;
     error: LogFn;
-}
+};
 
 type RPCSend = (data: any) => Promise<void> | void;
 type RPCOptions = { timeout?: number; logger?: CommonLogger };
@@ -198,7 +198,7 @@ class RPC {
             if (param === Object(param)) {
                 if (param['@func'] === '1.0' && Reflect.has(param, 'hash')) {
                     let hash = param.hash;
-                    return new Proxy(() => { }, {
+                    return new Proxy(() => {}, {
                         get(target, prop) {
                             // 有可能被通过then来判断是否是个promise
                             const sProp = String(prop);
@@ -208,7 +208,7 @@ class RPC {
                             if (sProp === 'release') {
                                 target.release = () => {
                                     self.notify('_.Function.release', [hash]);
-                                    target.release = () => { };
+                                    target.release = () => {};
                                     target.release.BEEN_CALLED = true;
                                 };
                                 return target.release;
@@ -377,7 +377,9 @@ class RPC {
             if (request.id && this._promises.hasOwnProperty(request.id)) {
                 let promise = this._promises[request.id];
                 this._options.logger?.debug(`call ${promise.method} -> error ${request.error.code}`, {
-                    method: promise.method, params: promise.params, error: request.error
+                    method: promise.method,
+                    params: promise.params,
+                    error: request.error,
                 });
                 promise.reject(request.error);
                 promise.timeout && delete rpcTimeout[promise.timeout];
@@ -388,7 +390,9 @@ class RPC {
                 let promise = this._promises[request.id];
                 let result = request.result;
                 this._options.logger?.debug(`call ${promise.method} -> success`, {
-                    method: promise.method, params: promise.params, result: request.result
+                    method: promise.method,
+                    params: promise.params,
+                    result: request.result,
                 });
                 if (result && typeof result === 'object' && Reflect.has(result, '@remote')) {
                     const self = this;
@@ -411,7 +415,7 @@ class RPC {
                             }
                             if (!Reflect.has(target.$$cache, prop)) {
                                 target.$$cache[prop] = new Proxy(
-                                    Object.assign(() => { }, {
+                                    Object.assign(() => {}, {
                                         $$baseName: target.$$baseName ? `${target.$$baseName}.${sProp}` : sProp,
                                         $$cache: {},
                                     }),
@@ -431,7 +435,7 @@ class RPC {
                     self._proxiedRemoteObjects[remoteId] = true;
                     const $$cache = {} as any;
                     result = new Proxy(
-                        Object.assign(() => { }, {
+                        Object.assign(() => {}, {
                             $$cache,
                             release$() {
                                 Object.keys($$cache).forEach((prop) => delete $$cache[prop]);
@@ -463,7 +467,7 @@ class RPC {
             result: result === undefined ? null : result,
         };
         if (id) data.id = id;
-        return Promise.resolve(this.send(data)).catch(() => { });;
+        return Promise.resolve(this.send(data)).catch(() => {});
     }
 
     public sendError(e: RPCError, id?: string) {
@@ -475,7 +479,7 @@ class RPC {
             },
         };
         if (id) data.id = id;
-        return Promise.resolve(this.send(data)).catch(() => { });;
+        return Promise.resolve(this.send(data)).catch(() => {});
     }
 
     public sendRequest(method: string, params: any[], id?: string) {
@@ -485,12 +489,42 @@ class RPC {
             params,
         };
         if (id) data.id = id;
-        return Promise.resolve(this.send(data)).catch(() => { });
+        return Promise.resolve(this.send(data)).catch(() => {});
     }
 
     private ready = true;
+    private readyPromise:
+        | {
+              promise: Promise<void>;
+              resolve: () => void;
+          }
+        | false = false;
+
     public setReady(ready = true) {
         this.ready = ready;
+        if (this.readyPromise) {
+            this.readyPromise.resolve();
+            this.readyPromise = null;
+        }
+    }
+
+    public whenReady() {
+        if (this.readyPromise) {
+            return this.readyPromise.promise;
+        }
+        const promise = new Promise<void>((resolve) => {
+            if (this.ready) {
+                resolve();
+            } else {
+                setImmediate(() => {
+                    this.readyPromise = {
+                        promise,
+                        resolve,
+                    };
+                });
+            }
+        });
+        return promise;
     }
 
     public notify(method: string, params: any = {}) {

@@ -1,7 +1,6 @@
 import typescript from '@rollup/plugin-typescript';
 import resolve from '@rollup/plugin-node-resolve';
 import commonjs from '@rollup/plugin-commonjs';
-import { terser } from 'rollup-plugin-terser';
 
 export default [
     {
@@ -21,7 +20,6 @@ export default [
             }),
             resolve(),
             commonjs(),
-            terser(),
         ],
         external: ['js-base64'],
     },
@@ -31,7 +29,7 @@ export default [
             format: 'es',
             file: 'lib/index.mjs',
         },
-        plugins: [typescript(), resolve(), commonjs(), terser()],
+        plugins: [typescript(), resolve(), commonjs()],
         external: ['js-base64'],
     },
     {
@@ -48,7 +46,7 @@ export default [
                 compact: true,
             },
         ],
-        plugins: [typescript(), resolve(), commonjs(), terser()],
+        plugins: [typescript(), resolve(), commonjs()],
         external: ['js-base64'],
     },
     {
@@ -65,7 +63,7 @@ export default [
                 compact: true,
             },
         ],
-        plugins: [typescript({ sourceMap: false }), resolve(), commonjs(), terser()],
+        plugins: [typescript({ sourceMap: false }), resolve(), commonjs()],
         external: ['js-base64'],
     },
 ];

@@ -38,6 +38,18 @@ const rpc = new SmartRPC(data => {
     // do your sending
 })
 
+rpc.setReady(false);
+rpc.call('hello').catch(e => {
+    // throw -32601 immediately.
+    // e.code == -32601, not ready yet
+});
+
+rpc.setReady(true);
+
+rpc.whenReady().then(() => {
+    // DO SOMEHTING
+});
+
 rpc.receive(data); // process data you received
 
 await rpc.Namespace1.Namespace2.Method1('hello'); // == rpc.call('Namespace1.Namespace2.Method1', ['hello'])
