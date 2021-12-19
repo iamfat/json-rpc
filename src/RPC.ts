@@ -516,7 +516,7 @@ class RPC {
             if (this.ready) {
                 resolve();
             } else {
-                setImmediate(() => {
+                setTimeout(() => {
                     this.readyPromise = {
                         promise,
                         resolve,
