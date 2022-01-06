@@ -67,7 +67,7 @@ type RPCLogger = {
 };
 
 type RPCSend = (data: any) => Promise<void> | void;
-type RPCOptions = { timeout?: number; logger?: RPCLogger };
+type RPCOptions = { timeout?: number; logger?: RPCLogger; ready?: boolean };
 
 const rpcTimeout: { [key: string]: { expires: number; callback: () => void } } = {};
 setInterval(() => {
@@ -100,7 +100,7 @@ class RPC {
 
     public constructor(send: RPCSend, options?: RPCOptions) {
         this.send = send;
-        this._options = { timeout: 5000, ...(options || {}) };
+        this._options = { timeout: 5000, ready: true, ...(options || {}) };
 
         this.on('_.Function.call', (hash: string, params: any[]) => {
             if (this._hashedFunctions.hasOwnProperty(hash)) {
@@ -492,20 +492,30 @@ class RPC {
         return Promise.resolve(this.send(data)).catch(() => {});
     }
 
-    private ready = true;
     private readyPromise:
         | {
               promise: Promise<void>;
               resolve: () => void;
+              resolved: boolean;
           }
         | false = false;
 
     public setReady(ready = true) {
-        this.ready = ready;
-        if (this.readyPromise) {
-            this.readyPromise.resolve();
-            this.readyPromise = null;
+        this._options.ready = ready;
+        if (ready) {
+            if (this.readyPromise) {
+                this.readyPromise.resolve();
+                this.readyPromise.resolved = true;
+            }
+        } else {
+            if (this.readyPromise && this.readyPromise.resolved) {
+                this.readyPromise = false;
+            }
         }
+    }
+
+    public setOptions(options: Partial<RPCOptions>) {
+        this._options = { ...this._options, ...options };
     }
 
     public whenReady() {
@@ -513,13 +523,14 @@ class RPC {
             return this.readyPromise.promise;
         }
         const promise = new Promise<void>((resolve) => {
-            if (this.ready) {
+            if (this._options.ready) {
                 resolve();
             } else {
                 setTimeout(() => {
                     this.readyPromise = {
                         promise,
                         resolve,
+                        resolved: false,
                     };
                 });
             }
@@ -528,14 +539,14 @@ class RPC {
     }
 
     public notify(method: string, params: any = {}) {
-        if (this.ready) {
+        if (this._options.ready) {
             this._options.logger?.debug(`notify ${method}`, { method, params });
             this.sendRequest(method, this.encodeNonScalars(params));
         }
     }
 
     public call(method: string, params: any = {}, timeout?: number) {
-        if (!this.ready) {
+        if (!this._options.ready) {
             return Promise.reject(new RPCError('RPC is not ready yet', -32601));
         }
         return new Promise((resolve, reject) => {
