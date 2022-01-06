@@ -495,8 +495,8 @@ class RPC {
     private readyPromise:
         | {
               promise: Promise<void>;
-              resolve: () => void;
               resolved: boolean;
+              resolve?: () => void;
           }
         | false = false;
 
@@ -504,8 +504,8 @@ class RPC {
         this._options.ready = ready;
         if (ready) {
             if (this.readyPromise) {
-                this.readyPromise.resolve();
                 this.readyPromise.resolved = true;
+                if (this.readyPromise.resolve) this.readyPromise.resolve();
             }
         } else {
             if (this.readyPromise && this.readyPromise.resolved) {
@@ -519,23 +519,22 @@ class RPC {
     }
 
     public whenReady() {
-        if (this.readyPromise) {
-            return this.readyPromise.promise;
+        if (!this.readyPromise) {
+            this.readyPromise = {
+                promise: new Promise<void>((resolve) =>
+                    setTimeout(() => {
+                        if (!this.readyPromise) return;
+                        this.readyPromise.resolve = resolve;
+                        if (this.readyPromise.resolved) {
+                            this.readyPromise.resolve();
+                            resolve();
+                        }
+                    }),
+                ),
+                resolved: false,
+            };
         }
-        const promise = new Promise<void>((resolve) => {
-            if (this._options.ready) {
-                resolve();
-            } else {
-                setTimeout(() => {
-                    this.readyPromise = {
-                        promise,
-                        resolve,
-                        resolved: false,
-                    };
-                });
-            }
-        });
-        return promise;
+        return this.readyPromise.promise;
     }
 
     public notify(method: string, params: any = {}) {
