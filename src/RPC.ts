@@ -70,16 +70,36 @@ type RPCSend = (data: any) => Promise<void> | void;
 type RPCOptions = { timeout?: number; logger?: RPCLogger; ready?: boolean };
 
 const rpcTimeout: { [key: string]: { expires: number; callback: () => void } } = {};
-setInterval(() => {
-    const now = Date.now();
-    Object.keys(rpcTimeout).forEach((timeoutId) => {
-        const { expires, callback } = rpcTimeout[timeoutId];
-        if (now >= expires) {
-            delete rpcTimeout[timeoutId];
-            callback();
-        }
-    });
-}, 500);
+let rpcTimeoutGC;
+
+function setRPCTimeout(callback, timeout: number) {
+    const timeoutId = nanoid(8);
+    rpcTimeout[timeoutId] = {
+        expires: Date.now() + timeout,
+        callback,
+    };
+    if (!rpcTimeoutGC) {
+        rpcTimeoutGC = setInterval(() => {
+            const now = Date.now();
+            Object.keys(rpcTimeout).forEach((timeoutId) => {
+                const { expires, callback } = rpcTimeout[timeoutId];
+                if (now >= expires) {
+                    delete rpcTimeout[timeoutId];
+                    callback();
+                }
+            });
+        }, 500);
+    }
+    return timeoutId;
+}
+
+function clearRPCTimeout(timeoutId: string) {
+    delete rpcTimeout[timeoutId];
+    if (Object.keys(rpcTimeout).length == 0) {
+        clearInterval(rpcTimeoutGC);
+        rpcTimeoutGC = undefined;
+    }
+}
 
 class RPC {
     public send: RPCSend;
@@ -382,7 +402,7 @@ class RPC {
                     error: request.error,
                 });
                 promise.reject(request.error);
-                promise.timeout && delete rpcTimeout[promise.timeout];
+                promise.timeout && clearRPCTimeout(promise.timeout);
                 delete this._promises[request.id];
             }
         } else if (Reflect.has(request, 'result')) {
@@ -453,7 +473,7 @@ class RPC {
                     result = this.decodeNonScalars(result);
                 }
                 promise.resolve(result);
-                promise.timeout && delete rpcTimeout[promise.timeout];
+                promise.timeout && clearRPCTimeout(promise.timeout);
                 delete this._promises[request.id];
             }
         }
@@ -556,14 +576,10 @@ class RPC {
 
             let timeoutId: string;
             if (timeout !== -1) {
-                timeoutId = nanoid(8);
-                rpcTimeout[timeoutId] = {
-                    expires: Date.now() + timeout,
-                    callback: () => {
-                        delete this._promises[id];
-                        reject(new RPCError('Call timeout', -32603));
-                    },
-                };
+                timeoutId = setRPCTimeout(() => {
+                    delete this._promises[id];
+                    reject(new RPCError('Call timeout', -32603));
+                }, timeout);
             }
 
             this._promises[id] = {
