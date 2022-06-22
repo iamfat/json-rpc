@@ -39,6 +39,21 @@ describe('JSON-RPC', () => {
         });
     });
 
+    it('should be called ignore case', (done) => {
+        const rpc = new JsonRPC(() => {});
+        rpc.on('hello', (...args) => {
+            expect(args).toEqual(['world']);
+            done();
+        });
+
+        rpc.receive({
+            id: 'foo',
+            jsonrpc: '2.0',
+            method: 'HelLo',
+            params: ['world'],
+        });
+    });
+
     it('should be called when passing object', (done) => {
         const rpc = new JsonRPC(() => {});
         rpc.on('hello', (...args) => {

@@ -298,10 +298,11 @@ class RPC {
     }
 
     private getHandler(method: string): [Function, RegExpMatchArray?] {
-        if (this._callingHandlers.hasOwnProperty(method)) {
-            const handler = this._callingHandlers[method];
+        const key = method.toLowerCase();
+        if (this._callingHandlers.hasOwnProperty(key)) {
+            const handler = this._callingHandlers[key];
             if (handler.once) {
-                delete this._callingHandlers[method];
+                delete this._callingHandlers[key];
             }
             return [handler.callback];
         }
@@ -603,7 +604,7 @@ class RPC {
                 callback,
             });
         } else {
-            this._callingHandlers[method] = { callback, once };
+            this._callingHandlers[method.toLowerCase()] = { callback, once };
         }
         return this;
     }
@@ -617,7 +618,7 @@ class RPC {
             let str = method.toString();
             this._patterns = this._patterns.filter((p) => p.pattern.toString() !== str);
         } else {
-            delete this._callingHandlers[method];
+            delete this._callingHandlers[method.toLowerCase()];
         }
         return this;
     }
