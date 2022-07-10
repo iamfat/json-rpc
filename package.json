@@ -1,6 +1,6 @@
 {
   "name": "@genee/json-rpc",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "main": "lib/index",
   "browser": "lib/index.browser",
   "react-native": "lib/index.rn",
@@ -11,6 +11,7 @@
     "@rollup/plugin-node-resolve": "^13.0.6",
     "@rollup/plugin-typescript": "^8.3.0",
     "@types/jasmine": "^3.10.2",
+    "@types/node": "16",
     "hash-sum": "^2.0.0",
     "jasmine": "^3.10.0",
     "js-base64": "^3.4.5",

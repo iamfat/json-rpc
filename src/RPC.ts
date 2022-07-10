@@ -102,12 +102,12 @@ function clearRPCTimeout(timeoutId: string) {
 }
 
 class RPC {
-    public send: RPCSend;
     public static Error = RPCError;
     public static isBuffer: Function;
     public static bufferEncode: Function;
     public static bufferDecode: Function;
 
+    private _send: RPCSend;
     private _options: RPCOptions;
     private _promises: { [method: string]: RPCPromise } = {};
     private _callingHandlers: { [method: string]: { callback: Function; once: boolean } } = {};
@@ -119,7 +119,7 @@ class RPC {
     private _proxiedRemoteObjects: { [id: string]: boolean } = {};
 
     public constructor(send: RPCSend, options?: RPCOptions) {
-        this.send = send;
+        this._send = send;
         this._options = { timeout: 5000, ready: true, ...(options || {}) };
 
         this.on('_.Function.call', (hash: string, params: any[]) => {
@@ -181,7 +181,7 @@ class RPC {
                 if (passToRemote) {
                     return JSON.parse(JSON.stringify(ret));
                 }
-                return this.makeRemoteObject(ret, remoteId);
+                return this._makeRemoteObject(ret, remoteId);
             });
         });
 
@@ -211,7 +211,7 @@ class RPC {
         this._options.timeout = timeout;
     }
 
-    private decodeNonScalars(params: any) {
+    private _decodeNonScalars(params: any) {
         const self = this;
 
         const _decode = (param: any): any => {
@@ -232,9 +232,6 @@ class RPC {
                                     target.release.BEEN_CALLED = true;
                                 };
                                 return target.release;
-                            }
-                            if (sProp === '$notify') {
-                                target.$notify = (...params) => self.notify('_.Function.call', [hash, params]);
                             }
                         },
                         apply(target, __, params) {
@@ -259,7 +256,7 @@ class RPC {
         return _decode(params);
     }
 
-    private encodeNonScalars(params: any) {
+    private _encodeNonScalars(params: any) {
         const _encode = (param: any): any => {
             if (typeof param === 'function') {
                 let hash = hash_sum(param);
@@ -280,7 +277,7 @@ class RPC {
         return _encode(params);
     }
 
-    private makeRemoteObject(obj: any, remoteId?: string) {
+    private _makeRemoteObject(obj: any, remoteId?: string) {
         const uniqid = nanoid(16);
         this._remoteObjects[uniqid] = obj;
 
@@ -292,12 +289,12 @@ class RPC {
         return { '@remote': uniqid };
     }
 
-    private extendedRPCs: RPC[] = [];
+    private _extendedRPCs: RPC[] = [];
     public extends(rpc: RPC) {
-        this.extendedRPCs.push(rpc);
+        this._extendedRPCs.push(rpc);
     }
 
-    private getHandler(method: string): [Function, RegExpMatchArray?] {
+    private _getHandler(method: string): [Function, RegExpMatchArray?] {
         const key = method.toLowerCase();
         if (this._callingHandlers.hasOwnProperty(key)) {
             const handler = this._callingHandlers[key];
@@ -316,18 +313,18 @@ class RPC {
         return [undefined];
     }
 
-    public receive(request: any): Promise<void> {
+    public async receive(request: any): Promise<void> {
         if (typeof request === 'string') {
             try {
                 request = JSON.parse(request);
             } catch (e) {
-                this.sendError(new RPCError('Parse error', -32700));
+                this._sendError(new RPCError('Parse error', -32700));
                 return;
             }
         }
 
         if (request.jsonrpc !== '2.0') {
-            this.sendError(new RPCError('Parse error', -32700));
+            this._sendError(new RPCError('Parse error', -32700));
             return;
         }
 
@@ -344,23 +341,23 @@ class RPC {
                 remote = false;
             }
 
-            let [f, matches]: any = this.getHandler(method);
+            let [f, matches]: any = this._getHandler(method);
 
-            if (f === undefined && this.extendedRPCs.length > 0) {
-                for (let rpc of this.extendedRPCs) {
-                    [f, matches] = rpc.getHandler(method);
+            if (f === undefined && this._extendedRPCs.length > 0) {
+                for (let rpc of this._extendedRPCs) {
+                    [f, matches] = rpc._getHandler(method);
                     if (f) break;
                 }
             }
 
             if (f === undefined) {
                 if (request.id) {
-                    this.sendError(new RPCError(`Method "${method}" not found`, -32601), request.id);
+                    this._sendError(new RPCError(`Method "${method}" not found`, -32601), request.id);
                 }
                 return;
             }
 
-            params = this.decodeNonScalars(params);
+            params = this._decodeNonScalars(params);
             if (!Array.isArray(params)) {
                 params = [params];
             }
@@ -369,9 +366,9 @@ class RPC {
                 params = [params, matches];
             }
 
-            const sendError = (e: Error) => {
+            const _sendError = (e: Error) => {
                 if (e instanceof RPCError) {
-                    this.sendError(e, request.id);
+                    this._sendError(e, request.id);
                 } else {
                     throw e;
                 }
@@ -382,17 +379,17 @@ class RPC {
                     .then((result) => {
                         if (remote) {
                             // encode result and add ref
-                            result = this.makeRemoteObject(result);
+                            result = this._makeRemoteObject(result);
                         } else {
-                            result = this.encodeNonScalars(result);
+                            result = this._encodeNonScalars(result);
                         }
                         if (request.id) {
-                            this.sendResult(result, request.id);
+                            this._sendResult(result, request.id);
                         }
                     })
-                    .catch(sendError);
+                    .catch(_sendError);
             } catch (e) {
-                sendError(e);
+                _sendError(e);
             }
         } else if (Reflect.has(request, 'error')) {
             if (request.id && this._promises.hasOwnProperty(request.id)) {
@@ -428,7 +425,7 @@ class RPC {
                         get(target, prop) {
                             // 有可能被通过then来判断是否是个promise
                             const sProp = String(prop);
-                            if (sProp === 'then' || sProp.slice(0, 2) === '$$') {
+                            if (sProp === 'then' || sProp.substring(0, 2) === '$$') {
                                 return undefined;
                             }
                             if (Reflect.has(target, prop)) {
@@ -471,7 +468,7 @@ class RPC {
                         RemoteObjectHandler,
                     );
                 } else {
-                    result = this.decodeNonScalars(result);
+                    result = this._decodeNonScalars(result);
                 }
                 promise.resolve(result);
                 promise.timeout && clearRPCTimeout(promise.timeout);
@@ -482,16 +479,16 @@ class RPC {
         return Promise.resolve();
     }
 
-    public sendResult(result: any, id?: string) {
+    private async _sendResult(result: any, id?: string) {
         const data: any = {
             jsonrpc: '2.0',
             result: result === undefined ? null : result,
         };
         if (id) data.id = id;
-        return Promise.resolve(this.send(data)).catch(() => {});
+        return Promise.resolve(this._send(data)).catch(() => {});
     }
 
-    public sendError(e: RPCError, id?: string) {
+    private async _sendError(e: RPCError, id?: string) {
         const data: any = {
             jsonrpc: '2.0',
             error: {
@@ -500,20 +497,20 @@ class RPC {
             },
         };
         if (id) data.id = id;
-        return Promise.resolve(this.send(data)).catch(() => {});
+        return Promise.resolve(this._send(data)).catch(() => {});
     }
 
-    public sendRequest(method: string, params: any[], id?: string) {
+    private async _sendRequest(method: string, params: any[], id?: string) {
         const data: any = {
             jsonrpc: '2.0',
             method,
             params,
         };
         if (id) data.id = id;
-        return Promise.resolve(this.send(data)).catch(() => {});
+        return Promise.resolve(this._send(data)).catch(() => {});
     }
 
-    private readyPromise:
+    private _readyPromise:
         | {
               promise: Promise<void>;
               resolved: boolean;
@@ -524,13 +521,13 @@ class RPC {
     public setReady(ready = true) {
         this._options.ready = ready;
         if (ready) {
-            if (this.readyPromise) {
-                this.readyPromise.resolved = true;
-                if (this.readyPromise.resolve) this.readyPromise.resolve();
+            if (this._readyPromise) {
+                this._readyPromise.resolved = true;
+                if (this._readyPromise.resolve) this._readyPromise.resolve();
             }
         } else {
-            if (this.readyPromise && this.readyPromise.resolved) {
-                this.readyPromise = false;
+            if (this._readyPromise && this._readyPromise.resolved) {
+                this._readyPromise = false;
             }
         }
     }
@@ -540,14 +537,14 @@ class RPC {
     }
 
     public whenReady() {
-        if (!this.readyPromise) {
-            this.readyPromise = {
+        if (!this._readyPromise) {
+            this._readyPromise = {
                 promise: new Promise<void>((resolve) =>
                     setTimeout(() => {
-                        if (!this.readyPromise) return;
-                        this.readyPromise.resolve = resolve;
-                        if (this.readyPromise.resolved) {
-                            this.readyPromise.resolve();
+                        if (!this._readyPromise) return;
+                        this._readyPromise.resolve = resolve;
+                        if (this._readyPromise.resolved) {
+                            this._readyPromise.resolve();
                             resolve();
                         }
                     }),
@@ -555,13 +552,13 @@ class RPC {
                 resolved: false,
             };
         }
-        return this.readyPromise.promise;
+        return this._readyPromise.promise;
     }
 
     public notify(method: string, params: any = {}) {
         if (this._options.ready) {
             this._options.logger?.debug(`notify ${method}`, { method, params });
-            this.sendRequest(method, this.encodeNonScalars(params));
+            this._sendRequest(method, this._encodeNonScalars(params));
         }
     }
 
@@ -571,7 +568,7 @@ class RPC {
         }
         return new Promise((resolve, reject) => {
             let id = nanoid(8);
-            this.sendRequest(method, this.encodeNonScalars(params), id);
+            this._sendRequest(method, this._encodeNonScalars(params), id);
 
             timeout = timeout || this._options.timeout;
 
