@@ -43,7 +43,7 @@ function SmartifyInstance<T>(target: T, options?: SmartifyOptions) {
     };
 
     const $cache: any = {};
-    const { exclude = ['then', 'catch', 'finally'] } = { ...options };
+    const { exclude = ['then', 'catch', 'finally', 'apply', 'call'] } = { ...options };
     return new Proxy(rpc, {
         get(target: any, prop: string | symbol) {
             if (Reflect.has(target, prop) || exclude.includes(prop)) {
