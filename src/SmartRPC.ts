@@ -20,8 +20,8 @@ function SmartifyInstance<T>(target: T, options?: SmartifyOptions) {
             if (typeof prop !== 'string') {
                 return target[prop];
             }
-            if (prop.charAt(0) === '$') {
-                return target[prop.substring(1)];
+            if (Reflect.has(target, prop)) {
+                return target[prop];
             } else if (!Reflect.has(target.$cache, prop)) {
                 target.$cache[prop] = new Proxy(
                     Object.assign(() => {}, {
@@ -43,7 +43,7 @@ function SmartifyInstance<T>(target: T, options?: SmartifyOptions) {
     };
 
     const $cache: any = {};
-    const { exclude = ['then', 'catch', 'finally', 'apply', 'call'] } = { ...options };
+    const { exclude = ['then', 'catch', 'finally'] } = { ...options };
     return new Proxy(rpc, {
         get(target: any, prop: string | symbol) {
             if (Reflect.has(target, prop) || exclude.includes(prop)) {
