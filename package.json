@@ -1,6 +1,6 @@
 {
   "name": "@genee/json-rpc",
-  "version": "1.8.0",
+  "version": "1.8.1",
   "main": "lib/index",
   "browser": "lib/index.browser",
   "react-native": "lib/index.rn",

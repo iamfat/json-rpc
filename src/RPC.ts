@@ -30,19 +30,24 @@ export class RPCError extends Error {
     }
 }
 
-interface RPCRequest {
-    jsonrpc: string;
+export type RPCRequest = {
+    jsonrpc: '2.0';
     id?: string;
     method: string;
-    params: any;
-}
+    params: any | any[];
+};
 
-interface RPCResponse {
-    jsonrpc: string;
+export type RPCResultResponse = {
+    jsonrpc: '2.0';
     id?: string;
-    result?: any;
-    error?: any;
-}
+    result: any;
+};
+
+export type RPCErrorResponse = {
+    jsonrpc: '2.0';
+    id?: string;
+    error: { code: number; message: string };
+};
 
 interface RPCPattern {
     pattern: RegExp;
@@ -59,15 +64,15 @@ interface RPCPromise {
 
 type LogFn = (message?: any, ...optionalParams: any[]) => void;
 
-type RPCLogger = {
+export type RPCLogger = {
     info: LogFn;
     debug: LogFn;
     warn: LogFn;
     error: LogFn;
 };
 
-type RPCSend = (data: any) => Promise<void> | void;
-type RPCOptions = { timeout?: number; logger?: RPCLogger; ready?: boolean };
+export type RPCSend = (data: RPCRequest | RPCResultResponse | RPCErrorResponse) => Promise<void> | void;
+export type RPCOptions = { timeout?: number; logger?: RPCLogger; ready?: boolean };
 
 const rpcTimeout: { [key: string]: { expires: number; callback: () => void } } = {};
 let rpcTimeoutGC;
@@ -480,7 +485,7 @@ class RPC {
     }
 
     private async _sendResult(result: any, id?: string) {
-        const data: any = {
+        const data: RPCResultResponse = {
             jsonrpc: '2.0',
             result: result === undefined ? null : result,
         };
@@ -489,7 +494,7 @@ class RPC {
     }
 
     private async _sendError(e: RPCError, id?: string) {
-        const data: any = {
+        const data: RPCErrorResponse = {
             jsonrpc: '2.0',
             error: {
                 code: e.code,
@@ -501,7 +506,7 @@ class RPC {
     }
 
     private async _sendRequest(method: string, params: any[], id?: string) {
-        const data: any = {
+        const data: RPCRequest = {
             jsonrpc: '2.0',
             method,
             params,
@@ -517,14 +522,16 @@ class RPC {
               resolve?: () => void;
           }
         | false = false;
+    private _readyCallbacks: (() => void)[];
 
-    public setReady(ready = true) {
+    setReady(ready = true) {
         this._options.ready = ready;
         if (ready) {
             if (this._readyPromise) {
                 this._readyPromise.resolved = true;
                 if (this._readyPromise.resolve) this._readyPromise.resolve();
             }
+            this._readyCallbacks.forEach((it) => it());
         } else {
             if (this._readyPromise && this._readyPromise.resolved) {
                 this._readyPromise = false;
@@ -532,11 +539,17 @@ class RPC {
         }
     }
 
-    public setOptions(options: Partial<RPCOptions>) {
+    setOptions(options: Partial<RPCOptions>) {
         this._options = { ...this._options, ...options };
     }
 
-    public whenReady() {
+    whenReady(): Promise<void>;
+    whenReady(callback: () => void): void;
+    whenReady(callback?: () => void) {
+        if (callback) {
+            this._readyCallbacks.push(callback);
+            return;
+        }
         if (!this._readyPromise) {
             this._readyPromise = {
                 promise: new Promise<void>((resolve) =>
@@ -555,14 +568,14 @@ class RPC {
         return this._readyPromise.promise;
     }
 
-    public notify(method: string, params: any = {}) {
+    notify(method: string, params: any = {}) {
         if (this._options.ready) {
             this._options.logger?.debug(`notify ${method}`, { method, params });
             this._sendRequest(method, this._encodeNonScalars(params));
         }
     }
 
-    public call(method: string, params: any = {}, timeout?: number) {
+    call(method: string, params: any = {}, timeout?: number) {
         if (!this._options.ready) {
             return Promise.reject(new RPCError('RPC is not ready yet', -32601));
         }
@@ -590,11 +603,11 @@ class RPC {
         });
     }
 
-    public once(method: string, callback: Function) {
+    once(method: string, callback: Function) {
         return this.on(method, callback, true);
     }
 
-    public on(method: string | RegExp, callback: Function, once = false) {
+    on(method: string | RegExp, callback: Function, once = false) {
         if (typeof method !== 'string') {
             this._patterns.push({
                 pattern: method,
@@ -606,7 +619,7 @@ class RPC {
         return this;
     }
 
-    public off(method: string | RegExp) {
+    off(method: string | RegExp) {
         if (typeof method !== 'string') {
             for (let key in this._callingHandlers) {
                 if (key.match(method) != null) delete this._callingHandlers[key];
@@ -621,6 +634,5 @@ class RPC {
     }
 }
 
-export type { RPCSend, RPCOptions, RPCLogger };
 export { RPC };
 export default RPC;
