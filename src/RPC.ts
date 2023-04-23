@@ -522,7 +522,7 @@ class RPC {
               resolve?: () => void;
           }
         | false = false;
-    private _readyCallbacks: (() => void)[];
+    private _readyCallbacks: (() => void)[] = [];
 
     setReady(ready = true) {
         this._options.ready = ready;
