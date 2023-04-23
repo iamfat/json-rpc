@@ -5,7 +5,11 @@
     "noImplicitAny": false,
     "rootDir": "./src",
     "sourceMap": false,
-    "moduleResolution": "node"
+    "moduleResolution": "node",
+    "declaration": true,
+    "declarationDir": "./lib",
+    "declarationMap": false,
+    "emitDeclarationOnly": true
   },
   "include": [
     "src/**/*"
