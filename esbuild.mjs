@@ -38,9 +38,9 @@ build({
     globalName: '__export__',
     minify: true,
     banner: {
-        js: `define(function() {`,
+        js: `define(function(){`,
     },
     footer: {
-        js: `return __export__;\n});`,
+        js: `return __export__;});`,
     },
 });

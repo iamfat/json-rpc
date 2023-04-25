@@ -170,7 +170,7 @@ class RPC {
         this.on('_.RemoteObject.apply', (remoteId: string, path: string, params: any) => {
             const obj = this._remoteObjects[remoteId];
             let passToRemote, props;
-            if (path.slice(-1) === '$') {
+            if (path.endsWith('$')) {
                 props = path.slice(0, -1).split('.');
                 passToRemote = true;
             } else {
