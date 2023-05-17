@@ -296,7 +296,9 @@ class RPC {
 
     private _extendedRPCs: RPC[] = [];
     public extends(rpc: RPC) {
-        this._extendedRPCs.push(rpc);
+        if (!this._extendedRPCs.some(it => it === rpc)) {
+            this._extendedRPCs.push(rpc);
+        }
     }
 
     private _getHandler(method: string): [Function, RegExpMatchArray?] {

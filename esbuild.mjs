@@ -36,7 +36,7 @@ build({
     entryPoints: ['src/index.browser.ts'],
     outfile: './lib/index.amd.js',
     globalName: '__export__',
-    minify: true,
+    // minify: true,
     banner: {
         js: `define(function(){`,
     },
