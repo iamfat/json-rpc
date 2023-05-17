@@ -6,6 +6,9 @@
   "react-native": "lib/index.rn",
   "author": "Jia Huang <iamfat@gmail.com>",
   "license": "MIT",
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org"
+  },
   "devDependencies": {
     "@types/jasmine": "^3.10.2",
     "@types/node": "16",
