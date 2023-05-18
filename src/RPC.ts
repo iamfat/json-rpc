@@ -382,7 +382,7 @@ class RPC {
             };
 
             try {
-                return Promise.resolve(f(...params))
+                return Promise.resolve(f.bind(this)(...params))
                     .then((result) => {
                         if (remote) {
                             // encode result and add ref
