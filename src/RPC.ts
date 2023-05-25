@@ -296,7 +296,7 @@ class RPC {
 
     private _extendedRPCs: RPC[] = [];
     public extends(rpc: RPC) {
-        if (!this._extendedRPCs.some(it => it === rpc)) {
+        if (!this._extendedRPCs.some((it) => it === rpc)) {
             this._extendedRPCs.push(rpc);
         }
     }
@@ -524,7 +524,7 @@ class RPC {
               resolve?: () => void;
           }
         | false = false;
-    private _readyCallbacks: (() => void)[] = [];
+    private _readyCallbacks: { called?: boolean } & (() => void)[] = [];
 
     setReady(ready = true) {
         this._options.ready = ready;
@@ -533,11 +533,15 @@ class RPC {
                 this._readyPromise.resolved = true;
                 if (this._readyPromise.resolve) this._readyPromise.resolve();
             }
-            this._readyCallbacks.forEach((it) => it());
+            if (!this._readyCallbacks.called) {
+                this._readyCallbacks.called = true;
+                this._readyCallbacks.forEach((it) => it());
+            }
         } else {
             if (this._readyPromise && this._readyPromise.resolved) {
                 this._readyPromise = false;
             }
+            delete this._readyCallbacks.called;
         }
     }
 
