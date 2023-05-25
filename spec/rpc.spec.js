@@ -1,8 +1,9 @@
-describe('JSON-RPC', () => {
-    const JsonRPC = require('../lib/index').default;
+import { randomBytes } from 'node:crypto';
+import { RPC, RPCError, RPCResult } from '../lib/index.js';
 
+describe('JSON-RPC', () => {
     it('should transfer request', (done) => {
-        const rpc = new JsonRPC((request) => {
+        const rpc = new RPC((request) => {
             expect(request.jsonrpc).toBe('2.0');
             expect(request.method).toBe('hello');
             expect(request.params).toEqual(['world']);
@@ -12,7 +13,7 @@ describe('JSON-RPC', () => {
     });
 
     it('should support timeout', (done) => {
-        const rpc = new JsonRPC((request) => {
+        const rpc = new RPC((request) => {
             // DO NOTHING BUT IDLE
         });
 
@@ -25,7 +26,7 @@ describe('JSON-RPC', () => {
     });
 
     it('should be called', (done) => {
-        const rpc = new JsonRPC(() => {});
+        const rpc = new RPC(() => {});
         rpc.on('hello', (...args) => {
             expect(args).toEqual(['world']);
             done();
@@ -40,7 +41,7 @@ describe('JSON-RPC', () => {
     });
 
     it('should be called ignore case', (done) => {
-        const rpc = new JsonRPC(() => {});
+        const rpc = new RPC(() => {});
         rpc.on('hello', (...args) => {
             expect(args).toEqual(['world']);
             done();
@@ -55,7 +56,7 @@ describe('JSON-RPC', () => {
     });
 
     it('should be called when passing object', (done) => {
-        const rpc = new JsonRPC(() => {});
+        const rpc = new RPC(() => {});
         rpc.on('hello', (...args) => {
             expect(args).toEqual([{ foo: 'bar' }]);
             done();
@@ -70,10 +71,10 @@ describe('JSON-RPC', () => {
     });
 
     it('should communicate', (done) => {
-        const rpcSender = new JsonRPC((request) => {
+        const rpcSender = new RPC((request) => {
             rpcReceiver.receive(request);
         });
-        const rpcReceiver = new JsonRPC((request) => {
+        const rpcReceiver = new RPC((request) => {
             rpcSender.receive(request);
         });
 
@@ -86,10 +87,10 @@ describe('JSON-RPC', () => {
     });
 
     it('should encode functions', (done) => {
-        const rpcSender = new JsonRPC((request) => {
+        const rpcSender = new RPC((request) => {
             rpcReceiver.receive(request);
         });
-        const rpcReceiver = new JsonRPC((request) => {
+        const rpcReceiver = new RPC((request) => {
             rpcSender.receive(request);
         });
 
@@ -106,14 +107,14 @@ describe('JSON-RPC', () => {
     });
 
     it('should encode buffers', (done) => {
-        const rpcSender = new JsonRPC((request) => {
+        const rpcSender = new RPC((request) => {
             rpcReceiver.receive(request);
         });
-        const rpcReceiver = new JsonRPC((request) => {
+        const rpcReceiver = new RPC((request) => {
             rpcSender.receive(request);
         });
 
-        const bytes = Buffer.from(require('crypto').randomBytes(16));
+        const bytes = Buffer.from(randomBytes(16));
         rpcReceiver.on('hello', (o) => {
             expect(o.bytes).toEqual(bytes);
             done();
@@ -125,14 +126,14 @@ describe('JSON-RPC', () => {
     });
 
     it('should encode buffers in result', (done) => {
-        const rpcSender = new JsonRPC((request) => {
+        const rpcSender = new RPC((request) => {
             rpcReceiver.receive(request);
         });
-        const rpcReceiver = new JsonRPC((request) => {
+        const rpcReceiver = new RPC((request) => {
             rpcSender.receive(request);
         });
 
-        const bytes = Buffer.from(require('crypto').randomBytes(16));
+        const bytes = Buffer.from(randomBytes(16));
         rpcReceiver.on('hello', async () => {
             return bytes;
         });
@@ -141,5 +142,35 @@ describe('JSON-RPC', () => {
             expect(o).toEqual(bytes);
             done();
         });
+    });
+
+    it('should call whenReady once', (done) => {
+        const rpc = new RPC(() => {}, { ready: false });
+        let times = 1;
+        rpc.whenReady(() => {
+            expect(times).toBe(1);
+        });
+        rpc.setReady(true);
+        setTimeout(() => {
+            times = 2;
+            rpc.setReady(true);
+            rpc.setReady(true);
+            rpc.setReady(true);
+            done();
+        }, 10);
+    });
+});
+
+describe('RPCError', () => {
+    it('toResponse', () => {
+        const response = new RPCError('foo', 123).toResponse('xyz');
+        expect(response).toEqual({ jsonrpc: '2.0', id: 'xyz', error: { code: 123, message: 'foo' } });
+    });
+});
+
+describe('RPCResult', () => {
+    it('toResponse', () => {
+        const result = new RPCResult({ hello: 'world' }).toResponse('xyz');
+        expect(result).toEqual({ jsonrpc: '2.0', id: 'xyz', result: { hello: 'world' } });
     });
 });

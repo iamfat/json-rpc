@@ -1,6 +1,6 @@
 {
   "name": "@genee/json-rpc",
-  "version": "1.8.6",
+  "version": "1.9.0",
   "main": "lib/index",
   "browser": "lib/index.browser",
   "react-native": "lib/index.rn",
@@ -11,14 +11,14 @@
     "registry": "https://registry.npmjs.org"
   },
   "devDependencies": {
-    "@types/jasmine": "^3.10.2",
-    "@types/node": "16",
-    "esbuild": "^0.17.18",
+    "@types/jasmine": "^3.10.7",
+    "@types/node": "^16.18.32",
+    "esbuild": "^0.17.19",
     "hash-sum": "^2.0.0",
-    "jasmine": "^3.10.0",
-    "js-base64": "^3.4.5",
-    "temp-dir": "^2.0.0",
-    "typescript": "^4.5.2"
+    "jasmine": "^5.0.0",
+    "js-base64": "^3.7.5",
+    "temp-dir": "^3.0.0",
+    "typescript": "^5.0.4"
   },
   "scripts": {
     "build": "tsc && node esbuild.mjs"

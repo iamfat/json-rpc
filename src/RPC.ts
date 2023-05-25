@@ -16,17 +16,55 @@ const customAlphabet = (alphabet) => {
 const nanoid = customAlphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyz');
 
 export class RPCError extends Error {
-    public message: string;
-    public code: number;
+    private _message: string;
+    private _code: number;
 
-    public constructor(message: string, code: number) {
+     constructor(message: string, code: number) {
         super(message);
-        this.code = code || 0;
-        this.message = message;
+        this._code = code || 0;
+        this._message = message;
     }
 
-    public toString() {
-        return this.message;
+    get message() {
+        return this._message;
+    }
+
+    get code() {
+        return this._code;
+    }
+
+     toString() {
+        return `${this._code} ${this._message}`;
+    }
+
+     toResponse(id?: string) {
+        return {
+            jsonrpc: '2.0',
+            id,
+            error: {
+                code: this._code,
+                message: this._message,
+            }
+        }
+    }
+}
+
+export class RPCResult {
+    private _result: any;
+    constructor(result: any) {
+        this._result = result;
+    }
+
+    get result() {
+        return this._result;
+    }
+
+    toResponse(id?: string) {
+        return {
+            jsonrpc: '2.0',
+            id,
+            result: this._result
+        }
     }
 }
 
