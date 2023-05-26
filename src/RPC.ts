@@ -19,7 +19,7 @@ export class RPCError extends Error {
     private _message: string;
     private _code: number;
 
-     constructor(message: string, code: number) {
+    constructor(message: string, code: number) {
         super(message);
         this._code = code || 0;
         this._message = message;
@@ -33,19 +33,19 @@ export class RPCError extends Error {
         return this._code;
     }
 
-     toString() {
+    toString() {
         return `${this._code} ${this._message}`;
     }
 
-     toResponse(id?: string) {
+    toResponse(id?: string) {
         return {
             jsonrpc: '2.0',
             id,
             error: {
                 code: this._code,
                 message: this._message,
-            }
-        }
+            },
+        };
     }
 }
 
@@ -63,8 +63,8 @@ export class RPCResult {
         return {
             jsonrpc: '2.0',
             id,
-            result: this._result
-        }
+            result: this._result,
+        };
     }
 }
 
@@ -592,6 +592,9 @@ class RPC {
     whenReady(callback?: () => void) {
         if (callback) {
             this._readyCallbacks.push(callback);
+            if (this._readyCallbacks.called) {
+                setTimeout(() => callback());
+            }
             return;
         }
         if (!this._readyPromise) {
