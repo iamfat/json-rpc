@@ -145,10 +145,10 @@ function clearRPCTimeout(timeoutId: string) {
 }
 
 class RPC {
-    public static Error = RPCError;
-    public static isBuffer: Function;
-    public static bufferEncode: Function;
-    public static bufferDecode: Function;
+    static Error = RPCError;
+    static isBuffer: Function;
+    static bufferEncode: Function;
+    static bufferDecode: Function;
 
     private _send: RPCSend;
     private _options: RPCOptions;
@@ -161,7 +161,7 @@ class RPC {
     private _remoteObjectClusters: { [id: string]: string[] } = {};
     private _proxiedRemoteObjects: { [id: string]: boolean } = {};
 
-    public constructor(send: RPCSend, options?: RPCOptions) {
+    constructor(send: RPCSend, options?: RPCOptions) {
         this._send = send;
         this._options = { timeout: 5000, ready: true, ...(options || {}) };
 
@@ -236,7 +236,7 @@ class RPC {
         });
     }
 
-    public stat() {
+    stat() {
         const objects = {};
         Object.keys(this._remoteObjectClusters).forEach((remoteId) => {
             objects[remoteId] = {};
@@ -250,7 +250,7 @@ class RPC {
         };
     }
 
-    public setTimeout(timeout: number) {
+    setTimeout(timeout: number) {
         this._options.timeout = timeout;
     }
 
@@ -333,7 +333,7 @@ class RPC {
     }
 
     private _extendedRPCs: RPC[] = [];
-    public extends(rpc: RPC) {
+    extends(rpc: RPC) {
         if (!this._extendedRPCs.some((it) => it === rpc)) {
             this._extendedRPCs.push(rpc);
         }
@@ -358,7 +358,7 @@ class RPC {
         return [undefined];
     }
 
-    public async receive(request: any): Promise<void> {
+    async receive(request: any): Promise<void> {
         if (typeof request === 'string') {
             try {
                 request = JSON.parse(request);
