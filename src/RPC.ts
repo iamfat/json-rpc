@@ -358,7 +358,7 @@ class RPC {
         return [undefined];
     }
 
-    async receive(request: any): Promise<void> {
+    receive(request: any): void {
         if (typeof request === 'string') {
             try {
                 request = JSON.parse(request);
@@ -420,7 +420,7 @@ class RPC {
             };
 
             try {
-                return Promise.resolve(f.bind(this)(...params))
+                Promise.resolve(f.bind(this)(...params))
                     .then((result) => {
                         if (remote) {
                             // encode result and add ref
@@ -520,8 +520,6 @@ class RPC {
                 delete this._promises[request.id];
             }
         }
-        // TODO: log the rest
-        return Promise.resolve();
     }
 
     private async _sendResult(result: any, id?: string) {
