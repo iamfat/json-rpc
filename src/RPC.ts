@@ -112,6 +112,12 @@ export type RPCLogger = {
 export type RPCSend = (data: RPCRequest | RPCResultResponse | RPCErrorResponse) => Promise<void> | void;
 export type RPCOptions = { timeout?: number; logger?: RPCLogger; ready?: boolean };
 
+type RPCReadyPromise = {
+    promise: Promise<void>;
+    resolved: boolean;
+    resolve?: () => void;
+};
+
 const rpcTimeout: { [key: string]: { expires: number; callback: () => void } } = {};
 let rpcTimeoutGC;
 
@@ -163,7 +169,7 @@ class RPC {
 
     constructor(send: RPCSend, options?: RPCOptions) {
         this._send = send;
-        this._options = { timeout: 5000, ready: true, ...(options || {}) };
+        this._options = { timeout: 5000, ...(options || {}) };
 
         this.on('_.Function.call', (hash: string, params: any[]) => {
             if (this._hashedFunctions.hasOwnProperty(hash)) {
@@ -234,6 +240,8 @@ class RPC {
             delete this._remoteObjectClusters[remoteId];
             return true;
         });
+
+        this.setReady(this._options.ready);
     }
 
     stat() {
@@ -553,29 +561,64 @@ class RPC {
         return Promise.resolve(this._send(data)).catch(() => {});
     }
 
-    private _readyPromise:
-        | {
-              promise: Promise<void>;
-              resolved: boolean;
-              resolve?: () => void;
-          }
-        | false = false;
+    private _readyPromise: RPCReadyPromise | undefined;
     private _readyCallbacks: { called?: boolean } & (() => void)[] = [];
+    private _notReadyPromise: RPCReadyPromise | undefined;
+    private _notReadyCallbacks: { called?: boolean } & (() => void)[] = [];
 
     setReady(ready = true) {
-        this._options.ready = ready;
         if (ready) {
-            if (this._readyPromise) {
+            if (this._readyPromise && !this._readyPromise.resolved) {
                 this._readyPromise.resolved = true;
-                if (this._readyPromise.resolve) this._readyPromise.resolve();
+                this._readyPromise.resolve?.();
+                this._readyPromise = undefined;
             }
             if (!this._readyCallbacks.called) {
                 this._readyCallbacks.called = true;
                 this._readyCallbacks.forEach((it) => it());
             }
+
+            if (!this._notReadyPromise || this._notReadyPromise.resolved) {
+                this._notReadyPromise = {
+                    promise: new Promise<void>((resolve) =>
+                        setTimeout(() => {
+                            if (!this._notReadyPromise) return;
+                            this._notReadyPromise.resolve = resolve;
+                            if (this._notReadyPromise.resolved) {
+                                this._notReadyPromise.resolve();
+                                resolve();
+                            }
+                        }),
+                    ),
+                    resolved: false,
+                };
+            }
+            delete this._notReadyCallbacks.called;
         } else {
-            if (this._readyPromise && this._readyPromise.resolved) {
-                this._readyPromise = false;
+            if (this._notReadyPromise && !this._notReadyPromise.resolved) {
+                this._notReadyPromise.resolved = true;
+                this._notReadyPromise.resolve?.();
+                this._notReadyPromise = undefined;
+            }
+            if (!this._notReadyCallbacks.called) {
+                this._notReadyCallbacks.called = true;
+                this._notReadyCallbacks.forEach((it) => it());
+            }
+
+            if (!this._readyPromise || this._readyPromise.resolved) {
+                this._readyPromise = {
+                    promise: new Promise<void>((resolve) =>
+                        setTimeout(() => {
+                            if (!this._readyPromise) return;
+                            this._readyPromise.resolve = resolve;
+                            if (this._readyPromise.resolved) {
+                                this._readyPromise.resolve();
+                                resolve();
+                            }
+                        }),
+                    ),
+                    resolved: false,
+                };
             }
             delete this._readyCallbacks.called;
         }
@@ -585,67 +628,59 @@ class RPC {
         this._options = { ...this._options, ...options };
     }
 
-    whenReady(): Promise<void>;
-    whenReady(callback: () => void): void;
     whenReady(callback?: () => void) {
-        if (callback) {
-            this._readyCallbacks.push(callback);
-            if (this._readyCallbacks.called) {
-                setTimeout(() => callback());
-            }
-            return;
+        if (!callback) return;
+        this._readyCallbacks.push(callback);
+        if (this._readyCallbacks.called) {
+            setTimeout(() => callback());
         }
-        if (!this._readyPromise) {
-            this._readyPromise = {
-                promise: new Promise<void>((resolve) =>
-                    setTimeout(() => {
-                        if (!this._readyPromise) return;
-                        this._readyPromise.resolve = resolve;
-                        if (this._readyPromise.resolved) {
-                            this._readyPromise.resolve();
-                            resolve();
-                        }
-                    }),
-                ),
-                resolved: false,
-            };
+    }
+
+    whenNotReady(callback?: () => void) {
+        if (!callback) return;
+        this._notReadyCallbacks.push(callback);
+        if (this._notReadyCallbacks.called) {
+            setTimeout(() => callback());
         }
-        return this._readyPromise.promise;
     }
 
     notify(method: string, params: any = {}) {
-        if (this._options.ready) {
+        const promise =
+            this._readyPromise && !this._readyPromise.resolved ? this._readyPromise.promise : Promise.resolve();
+        promise.then(() => {
             this._options.logger?.debug(`notify ${method}`, { method, params });
             this._sendRequest(method, this._encodeNonScalars(params));
-        }
+        });
     }
 
     call(method: string, params: any = {}, timeout?: number) {
-        if (!this._options.ready) {
-            return Promise.reject(new RPCError('RPC is not ready yet', -32601));
-        }
-        return new Promise((resolve, reject) => {
-            let id = nanoid(8);
-            this._sendRequest(method, this._encodeNonScalars(params), id);
+        const promise =
+            this._readyPromise && !this._readyPromise.resolved ? this._readyPromise.promise : Promise.resolve();
+        return promise.then(
+            () =>
+                new Promise((resolve, reject) => {
+                    let id = nanoid(8);
+                    this._sendRequest(method, this._encodeNonScalars(params), id);
 
-            timeout = timeout || this._options.timeout;
+                    timeout = timeout || this._options.timeout;
 
-            let timeoutId: string;
-            if (timeout !== -1) {
-                timeoutId = setRPCTimeout(() => {
-                    delete this._promises[id];
-                    reject(new RPCError('Call timeout', -32603));
-                }, timeout);
-            }
+                    let timeoutId: string;
+                    if (timeout !== -1) {
+                        timeoutId = setRPCTimeout(() => {
+                            delete this._promises[id];
+                            reject(new RPCError('Call timeout', -32603));
+                        }, timeout);
+                    }
 
-            this._promises[id] = {
-                method,
-                params,
-                resolve,
-                reject,
-                timeout: timeoutId,
-            };
-        });
+                    this._promises[id] = {
+                        method,
+                        params,
+                        resolve,
+                        reject,
+                        timeout: timeoutId,
+                    };
+                }),
+        );
     }
 
     once(method: string, callback: Function) {

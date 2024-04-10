@@ -46,9 +46,13 @@ rpc.call('hello').catch(e => {
 
 rpc.setReady(true);
 
-rpc.whenReady().then(() => {
-    // DO SOMEHTING
+rpc.whenReady(() => {
+    // DO SOMEHTING WHEN RPC READY
 });
+
+rpc.whenNotReady(() => {
+    // DO SOMEHTING WHEN RPC NOT READY
+})
 
 rpc.receive(data); // process data you received
 
