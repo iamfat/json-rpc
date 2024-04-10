@@ -39,11 +39,6 @@ const rpc = new SmartRPC(data => {
 })
 
 rpc.setReady(false);
-rpc.call('hello').catch(e => {
-    // throw -32601 immediately.
-    // e.code == -32601, not ready yet
-});
-
 rpc.setReady(true);
 
 rpc.whenReady(() => {
