@@ -169,7 +169,7 @@ class RPC {
 
     constructor(send: RPCSend, options?: RPCOptions) {
         this._send = send;
-        this._options = { timeout: 5000, ...(options || {}) };
+        this._options = { timeout: 5000, ready: true, ...options };
 
         this.on('_.Function.call', (hash: string, params: any[]) => {
             if (this._hashedFunctions.hasOwnProperty(hash)) {
@@ -423,7 +423,7 @@ class RPC {
                 if (e instanceof RPCError) {
                     this._sendError(e, request.id);
                 } else {
-                    throw e;
+                    this._sendError(new RPCError(String(e), -32603), request.id);
                 }
             };
 
@@ -585,7 +585,6 @@ class RPC {
                             if (!this._notReadyPromise) return;
                             this._notReadyPromise.resolve = resolve;
                             if (this._notReadyPromise.resolved) {
-                                this._notReadyPromise.resolve();
                                 resolve();
                             }
                         }),
@@ -612,7 +611,6 @@ class RPC {
                             if (!this._readyPromise) return;
                             this._readyPromise.resolve = resolve;
                             if (this._readyPromise.resolved) {
-                                this._readyPromise.resolve();
                                 resolve();
                             }
                         }),

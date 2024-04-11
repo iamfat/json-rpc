@@ -1,6 +1,6 @@
 {
   "name": "@genee/json-rpc",
-  "version": "1.10.0",
+  "version": "1.10.1",
   "main": "lib/index",
   "browser": "lib/index.browser",
   "react-native": "lib/index.rn",
@@ -22,8 +22,5 @@
   },
   "scripts": {
     "build": "tsc && node esbuild.mjs"
-  },
-  "peerDependencies": {
-    "js-base64": "^3.4.5"
   }
 }
