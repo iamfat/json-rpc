@@ -163,6 +163,7 @@ class RPC {
     private _patterns: RPCPattern[] = [];
 
     private _hashedFunctions: { [hash: string]: Function } = {};
+    private _hashedRemoteFunctions: { [hash: string]: Function } = {};
     private _remoteObjects: { [id: string]: any } = {};
     private _remoteObjectClusters: { [id: string]: string[] } = {};
     private _proxiedRemoteObjects: { [id: string]: boolean } = {};
@@ -185,9 +186,9 @@ class RPC {
             }
         });
 
-        this.on('_.RemoteObject.set', (remoteId: string, path: string, value: any) => {
+        this.on('_.Object.set', (objectId: string, path: string, value: any) => {
             try {
-                const obj = this._remoteObjects[remoteId];
+                const obj = this._remoteObjects[objectId];
                 const props = path.split('.');
                 const lastProp = props.pop();
                 let o = obj;
@@ -200,18 +201,18 @@ class RPC {
             }
         });
 
-        this.on('_.RemoteObject.get', (remoteId: string) => {
-            const obj = this._remoteObjects[remoteId];
+        this.on('_.Object.get', (objectId: string) => {
+            const obj = this._remoteObjects[objectId];
             return Promise.resolve(obj)
                 .then((o) => {
                     return JSON.parse(JSON.stringify(o));
                 })
                 .catch((e) => {
-                    this._options.logger?.debug('_.RemoteObject.get error', e);
+                    this._options.logger?.debug('_.Object.get error', e);
                 });
         });
 
-        this.on('_.RemoteObject.apply', (remoteId: string, path: string, params: any) => {
+        this.on('_.Object.apply', (remoteId: string, path: string, params: any) => {
             const obj = this._remoteObjects[remoteId];
             let passToRemote, props;
             if (path.endsWith('$')) {
@@ -234,7 +235,7 @@ class RPC {
             });
         });
 
-        this.on('_.RemoteObject.release', (remoteId: string) => {
+        this.on('_.Object.release', (remoteId: string) => {
             const cluster = this._remoteObjectClusters[remoteId] || [];
             cluster.map((key) => delete this._remoteObjects[key]);
             delete this._remoteObjectClusters[remoteId];
@@ -269,28 +270,32 @@ class RPC {
             if (param === Object(param)) {
                 if (param['@func'] === '1.0' && Reflect.has(param, 'hash')) {
                     let hash = param.hash;
-                    return new Proxy(() => {}, {
-                        get(target, prop) {
-                            // 有可能被通过then来判断是否是个promise
-                            const sProp = String(prop);
-                            if (Reflect.has(target, prop)) {
-                                return target[prop];
-                            }
-                            if (sProp === 'release') {
-                                target.release = () => {
-                                    self.notify('_.Function.release', [hash]);
-                                    target.release = () => {};
-                                    target.release.BEEN_CALLED = true;
-                                };
-                                return target.release;
-                            }
-                        },
-                        apply(target, __, params) {
-                            if (!target.release || target.release.BEEN_CALLED === undefined) {
-                                return self.call('_.Function.call', [hash, params]);
-                            }
-                        },
-                    } as ProxyHandler<any>);
+                    if (!this._hashedRemoteFunctions[hash]) {
+                        this._hashedRemoteFunctions[hash] = new Proxy(() => {}, {
+                            get(target, prop) {
+                                // 有可能被通过then来判断是否是个promise
+                                const sProp = String(prop);
+                                if (Reflect.has(target, prop)) {
+                                    return target[prop];
+                                }
+                                if (sProp === 'release') {
+                                    target.release = () => {
+                                        delete this._hashedRemoteFunctions[hash];
+                                        self.notify('_.Function.release', [hash]);
+                                        target.release = () => {};
+                                        target.release.BEEN_CALLED = true;
+                                    };
+                                    return target.release;
+                                }
+                            },
+                            apply(target, __, params) {
+                                if (!target.release || target.release.BEEN_CALLED === undefined) {
+                                    return self.call('_.Function.call', [hash, params]);
+                                }
+                            },
+                        } as ProxyHandler<any>);
+                    }
+                    return this._hashedFunctions[hash];
                 } else {
                     for (let k in param) {
                         param[k] = _decode(param[k]);
@@ -328,16 +333,16 @@ class RPC {
         return _encode(params);
     }
 
-    private _makeRemoteObject(obj: any, remoteId?: string) {
-        const uniqid = nanoid(16);
-        this._remoteObjects[uniqid] = obj;
+    private _makeRemoteObject(obj: any, clusterId?: string) {
+        const id = nanoid(16);
+        this._remoteObjects[id] = obj;
 
-        const rootId = remoteId || uniqid;
-        const cluster = this._remoteObjectClusters[rootId] || [];
-        cluster.push(uniqid);
-        this._remoteObjectClusters[rootId] = cluster;
+        clusterId = clusterId || id;
+        const cluster = this._remoteObjectClusters[clusterId] || [];
+        cluster.push(id);
+        this._remoteObjectClusters[clusterId] = cluster;
 
-        return { '@remote': uniqid };
+        return { $: true, id };
     }
 
     private _extendedRPCs: RPC[] = [];
@@ -394,6 +399,8 @@ class RPC {
                 remote = false;
             }
 
+            this._options.logger?.debug(`${request.id ? 'called' : 'notified'} by ${method}`, { params });
+
             let [f, matches]: any = this._getHandler(method);
 
             if (f === undefined && this._extendedRPCs.length > 0) {
@@ -448,7 +455,6 @@ class RPC {
             if (request.id && this._promises.hasOwnProperty(request.id)) {
                 let promise = this._promises[request.id];
                 this._options.logger?.debug(`call ${promise.method} -> error ${request.error.code}`, {
-                    method: promise.method,
                     params: promise.params,
                     error: request.error,
                 });
@@ -461,18 +467,17 @@ class RPC {
                 let promise = this._promises[request.id];
                 let result = request.result;
                 this._options.logger?.debug(`call ${promise.method} -> success`, {
-                    method: promise.method,
                     params: promise.params,
                     result: request.result,
                 });
-                if (result && typeof result === 'object' && Reflect.has(result, '@remote')) {
+                if (result && typeof result === 'object' && result.$ && result.id) {
                     const self = this;
-                    const remoteId = result['@remote'];
-                    const RemoteObjectHandler: ProxyHandler<any> = {
+                    const objectId = result.id;
+                    const ObjectHandler: ProxyHandler<any> = {
                         set(target, prop, value) {
                             const sProp = String(prop);
                             const propName = target.$$baseName ? `${target.$$baseName}.${sProp}` : sProp;
-                            self.call('_.RemoteObject.set', [remoteId, propName, value]);
+                            self.call('_.Object.set', [objectId, propName, value]);
                             return true;
                         },
                         get(target, prop) {
@@ -490,35 +495,35 @@ class RPC {
                                         $$baseName: target.$$baseName ? `${target.$$baseName}.${sProp}` : sProp,
                                         $$cache: {},
                                     }),
-                                    RemoteObjectHandler,
+                                    ObjectHandler,
                                 );
                             }
                             return target.$$cache[prop];
                         },
                         apply(target, _, params) {
                             return (
-                                self._proxiedRemoteObjects[remoteId] &&
-                                self.call('_.RemoteObject.apply', [remoteId, target.$$baseName, params])
+                                self._proxiedRemoteObjects[objectId] &&
+                                self.call('_.Object.apply', [objectId, target.$$baseName, params])
                             );
                         },
                     };
 
-                    self._proxiedRemoteObjects[remoteId] = true;
+                    self._proxiedRemoteObjects[objectId] = true;
                     const $$cache = {} as any;
                     result = new Proxy(
                         Object.assign(() => {}, {
                             $$cache,
                             release$() {
                                 Object.keys($$cache).forEach((prop) => delete $$cache[prop]);
-                                return self.call('_.RemoteObject.release', [remoteId]).finally(() => {
-                                    delete self._proxiedRemoteObjects[remoteId];
+                                return self.call('_.Object.release', [objectId]).finally(() => {
+                                    delete self._proxiedRemoteObjects[objectId];
                                 });
                             },
                             get$() {
-                                return self.call('_.RemoteObject.get', [remoteId]);
+                                return self.call('_.Object.get', [objectId]);
                             },
                         }),
-                        RemoteObjectHandler,
+                        ObjectHandler,
                     );
                 } else {
                     result = this._decodeNonScalars(result);
@@ -533,32 +538,38 @@ class RPC {
     private async _sendResult(result: any, id?: string) {
         const data: RPCResultResponse = {
             jsonrpc: '2.0',
+            id,
             result: result === undefined ? null : result,
         };
-        if (id) data.id = id;
-        return Promise.resolve(this._send(data)).catch(() => {});
+        try {
+            await Promise.resolve(this._send(data));
+        } catch {}
     }
 
     private async _sendError(e: RPCError, id?: string) {
         const data: RPCErrorResponse = {
             jsonrpc: '2.0',
+            id,
             error: {
                 code: e.code,
                 message: e.message,
             },
         };
-        if (id) data.id = id;
-        return Promise.resolve(this._send(data)).catch(() => {});
+        try {
+            await Promise.resolve(this._send(data));
+        } catch {}
     }
 
     private async _sendRequest(method: string, params: any[], id?: string) {
         const data: RPCRequest = {
             jsonrpc: '2.0',
+            id,
             method,
             params,
         };
-        if (id) data.id = id;
-        return Promise.resolve(this._send(data)).catch(() => {});
+        try {
+            await Promise.resolve(this._send(data));
+        } catch {}
     }
 
     private _readyPromise: RPCReadyPromise | undefined;
