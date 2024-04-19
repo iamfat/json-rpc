@@ -399,7 +399,7 @@ class RPC {
                 remote = false;
             }
 
-            this._options.logger?.debug(`${request.id ? 'called' : 'notified'} by ${method}`, { params });
+            this._options.logger?.debug(`${request.id ? 'called' : 'notified'} via ${method}`, { params });
 
             let [f, matches]: any = this._getHandler(method);
 
