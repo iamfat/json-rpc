@@ -637,7 +637,7 @@ class RPC {
         this._options = { ...this._options, ...options };
     }
 
-    whenReady(callback?: () => void) {
+    whenReady(callback: () => void) {
         if (!callback) return;
         this._readyCallbacks.push(callback);
         if (this._readyCallbacks.called) {
@@ -645,7 +645,7 @@ class RPC {
         }
     }
 
-    whenNotReady(callback?: () => void) {
+    whenNotReady(callback: () => void) {
         if (!callback) return;
         this._notReadyCallbacks.push(callback);
         if (this._notReadyCallbacks.called) {
