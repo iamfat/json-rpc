@@ -13,7 +13,7 @@
   "devDependencies": {
     "@types/jasmine": "^3.10.18",
     "@types/node": "^20.12.7",
-    "esbuild": "^0.17.19",
+    "esbuild": "^0.25.0",
     "hash-sum": "^2.0.0",
     "jasmine": "^5.1.0",
     "js-base64": "^3.7.7",
