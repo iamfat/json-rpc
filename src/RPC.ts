@@ -295,7 +295,7 @@ class RPC {
                             },
                         } as ProxyHandler<any>);
                     }
-                    return this._hashedFunctions[hash];
+                    return this._hashedRemoteFunctions[hash];
                 } else {
                     for (let k in param) {
                         param[k] = _decode(param[k]);
